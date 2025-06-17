@@ -1,3 +1,4 @@
+import { requireBearerAuth, type BearerAuthMiddlewareOptions } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
@@ -7,6 +8,7 @@ import { FastifyMcpStreamableHttpServer } from './server.ts';
 export type FastifyMcpStreamableHttpOptions = {
   server: Server;
   endpoint?: string;
+  bearerAuthMiddlewareOptions?: BearerAuthMiddlewareOptions;
 };
 
 const kFastifyMcp = Symbol('fastifyMcp');
@@ -18,9 +20,14 @@ const FastifyMcpStreamableHttp: FastifyPluginAsync<FastifyMcpStreamableHttpOptio
   app,
   options
 ) => {
-  const { server, endpoint } = options;
+  const { server, endpoint, bearerAuthMiddlewareOptions } = options;
 
   const mcp = new FastifyMcpStreamableHttpServer(app, server, endpoint);
+
+  if (bearerAuthMiddlewareOptions) {
+    await app.register(import('@fastify/middie'));
+    app.use(requireBearerAuth(bearerAuthMiddlewareOptions));
+  }
 
   // Decorate the Fastify instance with the MCP server for external access
   app.decorate(kFastifyMcp, mcp);

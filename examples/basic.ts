@@ -75,5 +75,5 @@ await app.ready();
 await app.listen({
   host: '127.0.0.1',
   port: 9080,
-  listenTextResolver: (address) => `MCP Streamable HTTP Server listening at ${address}`
+  listenTextResolver: (address) => `(Basic) MCP Streamable HTTP Server listening at ${address}`
 });
