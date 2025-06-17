@@ -33,11 +33,11 @@ const FastifyMcpStreamableHttp: FastifyPluginAsync<FastifyMcpStreamableHttpOptio
 
     const { bearerAuthMiddlewareOptions, authRouterOptions } = options.middlewares || {};
     if (bearerAuthMiddlewareOptions) {
-      app.use(requireBearerAuth(bearerAuthMiddlewareOptions));
+      app.use(mcp.getStats().endpoint, requireBearerAuth(bearerAuthMiddlewareOptions));
     }
 
     if (authRouterOptions) {
-      app.use(mcpAuthRouter(authRouterOptions));
+      app.use(mcp.getStats().endpoint, mcpAuthRouter(authRouterOptions));
     }
   }
 

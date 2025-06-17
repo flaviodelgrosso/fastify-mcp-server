@@ -16,4 +16,27 @@ export function registerTools (mcp: McpServer) {
       }
     ]
   }));
+
+  mcp.tool('example-auth-tool', 'Demo to display the validated access token in authInfo object', ({ authInfo }) => {
+    if (!authInfo?.token) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'This tool requires authentication. Please provide a valid Bearer token.'
+          }
+        ],
+        isError: true
+      };
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Authenticated tool called successfully! Your token is: ' + authInfo.token
+        }
+      ]
+    };
+  });
 }
