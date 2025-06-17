@@ -28,7 +28,7 @@
     "url": "git+https://github.com/flaviodelgrosso/fastify-mcp-streamable-http.git"
   },
   "scripts": {
-    "dev": "node --no-warnings --watch examples/${npm_config_example:-basic}.ts",
+    "dev": "node --no-warnings --watch demo/server.ts",
     "build": "rimraf dist && tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
     "prepare": "husky",
@@ -53,6 +53,8 @@
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
+    "@fastify/autoload": "^6.3.1",
+    "@fastify/cors": "^11.0.1",
     "@types/node": "^24.0.1",
     "c8": "^10.1.3",
     "close-with-grace": "^2.2.0",

@@ -7,6 +7,7 @@ import {
   type McpHandlers,
   PostRequestHandler
 } from './handlers.ts';
+import type { FastifyMcpStreamableHttpOptions } from './index.ts';
 import { SessionManager } from './session-manager.ts';
 
 const MCP_DEFAULT_ENDPOINT = '/mcp';
@@ -21,13 +22,13 @@ export class FastifyMcpStreamableHttpServer {
   private handlers: McpHandlers;
   private _sessionManager: SessionManager;
 
-  constructor (app: FastifyInstance, server: Server, endpoint = MCP_DEFAULT_ENDPOINT) {
+  constructor (app: FastifyInstance, options: FastifyMcpStreamableHttpOptions) {
     this.app = app;
-    this.endpoint = endpoint;
-    this.server = server;
+    this.endpoint = options.endpoint || MCP_DEFAULT_ENDPOINT;
+    this.server = options.server;
 
     // Initialize session manager
-    this._sessionManager = new SessionManager(server);
+    this._sessionManager = new SessionManager(options.server);
 
     // Initialize request handlers using Strategy pattern
     this.handlers = {
@@ -36,7 +37,7 @@ export class FastifyMcpStreamableHttpServer {
       delete: new DeleteRequestHandler(this._sessionManager)
     };
 
-    this.registerRoutes();
+    this.registerMcpRoutes();
   }
 
   /**
@@ -67,7 +68,7 @@ export class FastifyMcpStreamableHttpServer {
   /**
    * Registers all HTTP routes with their respective handlers
    */
-  private registerRoutes (): void {
+  private registerMcpRoutes (): void {
     this.app.route({
       method: 'POST',
       url: this.endpoint,
