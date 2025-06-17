@@ -39,6 +39,20 @@ export default [
           }
         }
       ],
+      '@stylistic/member-delimiter-style': [
+        'warn',
+        {
+          multiline: {
+            delimiter: 'semi',
+            requireLast: true
+          },
+          singleline: {
+            delimiter: 'semi',
+            requireLast: false
+          },
+          multilineDetection: 'brackets'
+        }
+      ],
       '@stylistic/comma-dangle': [
         'error',
         {
