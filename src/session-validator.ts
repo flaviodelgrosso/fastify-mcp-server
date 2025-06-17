@@ -12,7 +12,7 @@ type SessionValidationResult = {
   transport?: StreamableHTTPServerTransport;
 };
 
-const MCP_SESSION_ID_HEADER = 'Mcp-Session-Id';
+const MCP_SESSION_ID_HEADER = 'mcp-session-id';
 
 /**
  * Session validator class that handles session validation logic
