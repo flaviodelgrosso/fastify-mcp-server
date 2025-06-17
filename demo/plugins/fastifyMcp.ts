@@ -20,10 +20,8 @@ const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpStreamableHttpOptions> = as
   await app.register(FastifyMcpStreamableHttp, {
     server: mcp.server,
     endpoint: '/mcp', // optional, defaults to '/mcp'
-    middlewares: {
-      bearerAuthMiddlewareOptions: {
-        verifier: new BearerTokenVerifier()
-      }
+    bearerMiddleware: {
+      verifier: new BearerTokenVerifier()
     }
   });
 
