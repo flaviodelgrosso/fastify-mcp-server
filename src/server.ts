@@ -7,7 +7,7 @@ import {
   type McpHandlers,
   PostRequestHandler
 } from './handlers.ts';
-import type { FastifyMcpStreamableHttpOptions } from './index.ts';
+import type { FastifyMcpServerOptions } from './index.ts';
 import { SessionManager } from './session-manager.ts';
 
 const MCP_DEFAULT_ENDPOINT = '/mcp';
@@ -15,13 +15,13 @@ const MCP_DEFAULT_ENDPOINT = '/mcp';
 /**
  * Main server class that coordinates MCP streamable HTTP handling
  */
-export class FastifyMcpStreamableHttpServer {
+export class FastifyMcpServer {
   private fastify: FastifyInstance;
-  private options: FastifyMcpStreamableHttpOptions;
+  private options: FastifyMcpServerOptions;
   private handlers: McpHandlers;
   private sessionManager: SessionManager;
 
-  constructor (app: FastifyInstance, options: FastifyMcpStreamableHttpOptions) {
+  constructor (app: FastifyInstance, options: FastifyMcpServerOptions) {
     this.fastify = app;
     this.options = options;
 

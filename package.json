@@ -1,5 +1,5 @@
 {
-  "name": "fastify-mcp-streamable-http",
+  "name": "fastify-mcp-server",
   "description": "A Fastify plugin for Model Context Protocol (MCP) streamable HTTP support",
   "version": "0.1.0",
   "type": "module",
@@ -22,10 +22,10 @@
     "modelcontextprotocol",
     "server"
   ],
-  "homepage": "https://github.com/flaviodelgrosso/fastify-mcp-streamable-http#readme",
+  "homepage": "https://github.com/flaviodelgrosso/fastify-mcp-server#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/flaviodelgrosso/fastify-mcp-streamable-http.git"
+    "url": "git+https://github.com/flaviodelgrosso/fastify-mcp-server.git"
   },
   "scripts": {
     "dev": "node --no-warnings --watch demo/server.ts",

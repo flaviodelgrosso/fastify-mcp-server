@@ -1,11 +1,11 @@
-# Fastify MCP Streamable HTTP Plugin
+# Fastify MCP Server Plugin
 
 A robust Fastify plugin that provides seamless integration with the Model Context Protocol (MCP) through streamable HTTP transport. This plugin enables your Fastify applications to act as MCP servers, allowing AI assistants and other clients to interact with your services using the standardized MCP protocol.
 
-[![NPM version](https://img.shields.io/npm/v/fastify-mcp-streamable-http.svg?style=flat)](https://www.npmjs.com/package/fastify-mcp-streamable-http)
-[![NPM downloads](https://img.shields.io/npm/dm/fastify-mcp-streamable-http.svg?style=flat)](https://www.npmjs.com/package/fastify-mcp-streamable-http)
-[![CI](https://github.com/flaviodelgrosso/fastify-mcp-streamable-http/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/flaviodelgrosso/fastify-mcp-streamable-http/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/flaviodelgrosso/fastify-mcp-streamable-http/graph/badge.svg?token=4ZGUR6VXTJ)](https://codecov.io/gh/flaviodelgrosso/fastify-mcp-streamable-http)
+[![NPM version](https://img.shields.io/npm/v/fastify-mcp-server.svg?style=flat)](https://www.npmjs.com/package/fastify-mcp-server)
+[![NPM downloads](https://img.shields.io/npm/dm/fastify-mcp-server.svg?style=flat)](https://www.npmjs.com/package/fastify-mcp-server)
+[![CI](https://github.com/flaviodelgrosso/fastify-mcp-server/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/flaviodelgrosso/fastify-mcp-server/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/flaviodelgrosso/fastify-mcp-server/graph/badge.svg?token=4ZGUR6VXTJ)](https://codecov.io/gh/flaviodelgrosso/fastify-mcp-server)
 
 ## Overview
 
@@ -38,7 +38,7 @@ The Model Context Protocol (MCP) is an open standard that enables AI assistants 
 ## Installation
 
 ```bash
-npm install fastify-mcp-streamable-http @modelcontextprotocol/sdk
+npm install fastify-mcp-server @modelcontextprotocol/sdk
 ```
 
 ## Quick Start
@@ -46,7 +46,7 @@ npm install fastify-mcp-streamable-http @modelcontextprotocol/sdk
 ```typescript
 import Fastify from 'fastify';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import FastifyMcpStreamableHttp, { getMcpDecorator } from 'fastify-mcp-streamable-http';
+import FastifyMcpServer, { getMcpDecorator } from 'fastify-mcp-server';
 
 const app = Fastify({ logger: true });
 
@@ -62,7 +62,7 @@ mcp.tool('hello-world', () => ({
 }));
 
 // Register the plugin
-await app.register(FastifyMcpStreamableHttp, {
+await app.register(FastifyMcpServer, {
   server: mcp.server,
   endpoint: '/mcp', // optional, defaults to '/mcp'
 });
@@ -79,7 +79,7 @@ await app.listen({ host: '127.0.0.1', port: 3000 });
 ### Plugin Options
 
 ```typescript
-type FastifyMcpStreamableHttpOptions = {
+type FastifyMcpServerOptions = {
   server: Server;      // MCP Server instance from @modelcontextprotocol/sdk
   endpoint?: string;   // Custom endpoint path (default: '/mcp')
 }
@@ -151,6 +151,34 @@ The plugin exposes three HTTP endpoints for MCP communication:
 - **Headers**:
   - `mcp-session-id: <session-id>` (required)
 
+### Design Patterns
+
+The plugin employs several design patterns for maintainability and extensibility:
+
+1. **Strategy Pattern**: Different request handlers for POST, GET, and DELETE operations
+2. **Decorator Pattern**: Fastify instance decoration for external access
+3. **Observer Pattern**: Event-driven session management
+4. **Factory Pattern**: Session creation and management
+
+### Core Components
+
+```txt
+┌─────────────────────────────────────────┐
+│             Fastify Application             │
+├─────────────────────────────────────────┤
+│              FastifyMcpPlugin               │
+├─────────────────────────────────────────┤
+│              FastifyMcpServer               │
+├──────────────┬──────────────────────────┤
+│ SessionManager │     Request Handlers   │
+│               │  ┌─────────────────────┐ │
+│  - Session    │  │ PostRequestHandler  │ │
+│    Lifecycle  │  │ GetRequestHandler   │ │
+│  - Event      │  │ DeleteRequestHandler│ │
+│    Emission   │  └─────────────────────┘ │
+└──────────────┴──────────────────────────┘
+```
+
 ### Session Management
 
 Sessions are managed through a dedicated `SessionManager` class that:
@@ -210,8 +238,8 @@ closeWithGrace({ delay: 500 }, async ({ signal, err }) => {
 
 ```bash
 # Clone the repository
-git clone https://github.com/flaviodelgrosso/fastify-mcp-streamable-http.git
-cd fastify-mcp-streamable-http
+git clone https://github.com/flaviodelgrosso/fastify-mcp-server.git
+cd fastify-mcp-server
 
 # Install dependencies
 npm install
@@ -253,7 +281,7 @@ The project uses several tools to maintain code quality:
 ```typescript
 import Fastify from 'fastify';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import FastifyMcpStreamableHttp from 'fastify-mcp-streamable-http';
+import FastifyMcpServer from 'fastify-mcp-server';
 
 const app = Fastify({ logger: true });
 const mcp = new McpServer({ name: 'basic-server', version: '1.0.0' });
@@ -263,7 +291,7 @@ mcp.tool('get-time', () => ({
   content: [{ type: 'text', text: new Date().toISOString() }]
 }));
 
-await app.register(FastifyMcpStreamableHttp, { server: mcp.server });
+await app.register(FastifyMcpServer, { server: mcp.server });
 await app.listen({ port: 3000 });
 ```
 
@@ -327,4 +355,4 @@ MIT © [Flavio Del Grosso](https://github.com/flaviodelgrosso)
 
 ---
 
-**Need help?** [Open an issue](https://github.com/flaviodelgrosso/fastify-mcp-streamable-http/issues) or [start a discussion](https://github.com/flaviodelgrosso/fastify-mcp-streamable-http/discussions).
+**Need help?** [Open an issue](https://github.com/flaviodelgrosso/fastify-mcp-server/issues) or [start a discussion](https://github.com/flaviodelgrosso/fastify-mcp-server/discussions).
