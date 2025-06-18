@@ -3,7 +3,7 @@ import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
 
-import FastifyMcpStreamableHttp, { getMcpDecorator, type FastifyMcpStreamableHttpOptions } from '../../src/index.ts';
+import FastifyMcpStreamableHttp, { getMcpDecorator, type FastifyMcpServerOptions } from '../../src/index.ts';
 import { mcp } from '../mcp/server.ts';
 
 class BearerTokenVerifier implements OAuthTokenVerifier {
@@ -16,7 +16,7 @@ class BearerTokenVerifier implements OAuthTokenVerifier {
   }
 }
 
-const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpStreamableHttpOptions> = async (app) => {
+const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpServerOptions> = async (app) => {
   await app.register(FastifyMcpStreamableHttp, {
     server: mcp.server,
     endpoint: '/mcp', // optional, defaults to '/mcp'
