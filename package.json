@@ -68,6 +68,6 @@
     "typescript": "^5.8.3"
   },
   "lint-staged": {
-    "*.ts": "npm run lint"
+    "*.ts": "eslint --max-warnings 0"
   }
 }
