@@ -2,12 +2,11 @@ import { strictEqual, deepStrictEqual, ok } from 'node:assert';
 import { randomUUID } from 'node:crypto';
 import { afterEach, describe, test } from 'node:test';
 
-import { mockInitialize } from './__mocks__/mockInitialize.ts';
 import { buildApp } from './setupTests.ts';
 
 import { getMcpDecorator } from '../src/index.ts';
 
-describe('Server', async () => {
+describe('Sessions', async () => {
   const app = await buildApp();
   const mcp = getMcpDecorator(app);
 
@@ -36,7 +35,27 @@ describe('Server', async () => {
   });
 
   test('should accept a request without a session ID if it is an initialization request', async () => {
-    const response = await mockInitialize(app);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream'
+      },
+      body: {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-03-26',
+          capabilities: {},
+          clientInfo: {
+            name: 'ExampleClient',
+            version: '1.0.0'
+          }
+        }
+      }
+    });
 
     strictEqual(response.statusCode, 200);
     strictEqual(response.headers['content-type'], 'text/event-stream');

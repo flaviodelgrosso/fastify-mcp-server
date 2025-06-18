@@ -46,9 +46,9 @@ function extractBearerToken (authHeader: string | undefined): string {
     throw new InvalidTokenError('Missing Authorization header');
   }
 
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  if (!token) {
-    throw new InvalidTokenError('Invalid Authorization header format');
+  const [type, token] = authHeader.split(' ');
+  if (type.toLowerCase() !== 'bearer' || !token) {
+    throw new InvalidTokenError("Invalid Authorization header format, expected 'Bearer TOKEN'");
   }
 
   return token;

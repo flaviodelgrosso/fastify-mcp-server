@@ -6,6 +6,7 @@ import { getMcpDecorator } from '../src/index.ts';
 
 async function startServer () {
   const app = await buildApp({
+    disableRequestLogging: true,
     logger: {
       level: 'debug',
       transport: {

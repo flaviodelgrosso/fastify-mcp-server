@@ -1,7 +1,6 @@
 import { strictEqual, ok } from 'node:assert';
 import { describe, test } from 'node:test';
 
-import { mockInitialize } from './__mocks__/mockInitialize.ts';
 import { buildApp } from './setupTests.ts';
 
 import { getMcpDecorator } from '../src/index.ts';
@@ -40,7 +39,28 @@ describe('Plugin Registration', () => {
     const app = await buildApp();
     const mcp = getMcpDecorator(app);
 
-    await mockInitialize(app);
+    await app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream'
+      },
+      body: {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-03-26',
+          capabilities: {},
+          clientInfo: {
+            name: 'ExampleClient',
+            version: '1.0.0'
+          }
+        }
+      }
+    });
+
     strictEqual(mcp.getStats().activeSessions, 1);
 
     // Shutdown should close all sessions

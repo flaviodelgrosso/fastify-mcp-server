@@ -1,6 +1,7 @@
 import neo, { resolveIgnoresFromGitignore, plugins } from 'neostandard';
 
 const stylisticRules = plugins['@stylistic'].configs['all-flat'];
+const typescriptEslintRules = plugins['typescript-eslint'].configs.recommended;
 
 export default [
   ...neo({
@@ -9,12 +10,22 @@ export default [
     ignores: resolveIgnoresFromGitignore()
   }),
   stylisticRules,
+  ...typescriptEslintRules,
   {
     rules: {
-      '@stylistic/semi': [
+      '@typescript-eslint/no-unused-vars': [
         'warn',
-        'always'
+        {
+          args: 'all',
+          argsIgnorePattern: '^_',
+          caughtErrors: 'all',
+          caughtErrorsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          ignoreRestSiblings: true
+        }
       ],
+      '@stylistic/semi': ['warn', 'always'],
       '@stylistic/multiline-comment-style': 'warn',
       '@stylistic/function-call-argument-newline': 'off',
       '@stylistic/lines-around-comment': 'off',
@@ -26,6 +37,14 @@ export default [
           imports: 'never',
           exports: 'never',
           functions: 'never'
+        }
+      ],
+      '@stylistic/array-element-newline': [
+        'warn',
+        {
+          minItems: 3,
+          multiline: true,
+          consistent: true
         }
       ],
       'import-x/order': [

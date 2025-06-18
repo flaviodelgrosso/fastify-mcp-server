@@ -9,9 +9,8 @@ import { mcp } from '../mcp/server.ts';
 class BearerTokenVerifier implements OAuthTokenVerifier {
   verifyAccessToken (token: string): Promise<AuthInfo> {
     // Just a mock implementation for demonstration purposes.
-    const authInfo = { token, clientId: 'example-client', scopes: [] } satisfies AuthInfo;
     return new Promise((resolve) => {
-      resolve(authInfo);
+      resolve({ token, clientId: 'example-client', scopes: [] });
     });
   }
 }
