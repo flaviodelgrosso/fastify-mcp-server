@@ -12,7 +12,7 @@ describe('Server', async () => {
   const mcp = getMcpDecorator(app);
 
   afterEach(() => {
-    mcp.sessionManager.destroyAllSessions();
+    mcp.getSessionManager().destroyAllSessions();
   });
 
   test('should reject a request without a session ID if it is not an initialize request', async () => {

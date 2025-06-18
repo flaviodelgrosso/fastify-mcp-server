@@ -33,7 +33,7 @@ describe('Plugin Registration', () => {
     const mcp = getMcpDecorator(app);
 
     ok(mcp);
-    ok(mcp.sessionManager);
+    ok(mcp.getSessionManager());
   });
 
   test('should shutdown all sessions', async () => {

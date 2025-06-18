@@ -36,8 +36,7 @@ export class PostRequestHandler implements McpRequestHandler {
     } else if (!validation.sessionId) {
       // New session - must be initialize request
       if (!isInitializeRequest(request.body)) {
-        sendInvalidRequest(reply);
-        return;
+        return sendInvalidRequest(reply);
       }
 
       const transport = await this.sessionManager.createSession();

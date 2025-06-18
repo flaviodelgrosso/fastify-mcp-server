@@ -25,18 +25,18 @@ const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpStreamableHttpOptions> = as
     }
   });
 
-  const mcpServer = getMcpDecorator(app);
+  const sessionManager = getMcpDecorator(app).getSessionManager();
 
   // Setup event handlers after plugin registration
-  mcpServer.sessionManager.on('sessionCreated', (sessionId) => {
+  sessionManager.on('sessionCreated', (sessionId) => {
     app.log.info({ sessionId }, 'MCP session created');
   });
 
-  mcpServer.sessionManager.on('sessionDestroyed', (sessionId) => {
+  sessionManager.on('sessionDestroyed', (sessionId) => {
     app.log.info({ sessionId }, 'MCP session destroyed');
   });
 
-  mcpServer.sessionManager.on('transportError', (sessionId, error) => {
+  sessionManager.on('transportError', (sessionId, error) => {
     app.log.error({ sessionId, error }, 'MCP transport error in session');
   });
 };

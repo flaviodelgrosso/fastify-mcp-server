@@ -1,24 +1,31 @@
 import neo, { resolveIgnoresFromGitignore, plugins } from 'neostandard';
 
+const stylisticRules = plugins['@stylistic'].configs['all-flat'];
+
 export default [
   ...neo({
     ts: true,
     semi: true,
     ignores: resolveIgnoresFromGitignore()
   }),
-  ...plugins['typescript-eslint'].configs.recommended,
+  stylisticRules,
   {
     rules: {
-      'no-console': ['warn', { allow: ['info', 'warn', 'error'] }],
-      '@typescript-eslint/no-unused-vars': [
+      '@stylistic/semi': [
         'warn',
+        'always'
+      ],
+      '@stylistic/multiline-comment-style': 'warn',
+      '@stylistic/function-call-argument-newline': 'off',
+      '@stylistic/lines-around-comment': 'off',
+      '@stylistic/comma-dangle': [
+        'error',
         {
-          vars: 'all',
-          args: 'after-used',
-          ignoreRestSiblings: true,
-          argsIgnorePattern: '^_',
-          varsIgnorePattern: '^_',
-          caughtErrorsIgnorePattern: '^_'
+          arrays: 'never',
+          objects: 'never',
+          imports: 'never',
+          exports: 'never',
+          functions: 'never'
         }
       ],
       'import-x/order': [
@@ -38,31 +45,8 @@ export default [
             caseInsensitive: true
           }
         }
-      ],
-      '@stylistic/member-delimiter-style': [
-        'warn',
-        {
-          multiline: {
-            delimiter: 'semi',
-            requireLast: true
-          },
-          singleline: {
-            delimiter: 'semi',
-            requireLast: false
-          },
-          multilineDetection: 'brackets'
-        }
-      ],
-      '@stylistic/comma-dangle': [
-        'error',
-        {
-          arrays: 'never',
-          objects: 'never',
-          imports: 'never',
-          exports: 'never',
-          functions: 'never'
-        }
       ]
+
     }
   }
 ];

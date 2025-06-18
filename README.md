@@ -97,7 +97,7 @@ const stats = mcpServer.getStats();
 console.log(`Active sessions: ${stats.activeSessions}`);
 
 // Access session manager for event handling
-const sessionManager = mcpServer.sessionManager;
+const sessionManager = mcpServer.getSessionManager();
 
 // Graceful shutdown
 await mcpServer.shutdown();
@@ -108,7 +108,7 @@ await mcpServer.shutdown();
 Monitor session lifecycle with event listeners:
 
 ```typescript
-const sessionManager = mcpServer.sessionManager;
+const sessionManager = mcpServer.getSessionManager();
 
 // Session created
 sessionManager.on('sessionCreated', (sessionId: string) => {
@@ -150,36 +150,6 @@ The plugin exposes three HTTP endpoints for MCP communication:
 - **Purpose**: Terminate sessions
 - **Headers**:
   - `mcp-session-id: <session-id>` (required)
-
-## Architecture
-
-### Design Patterns
-
-The plugin employs several design patterns for maintainability and extensibility:
-
-1. **Strategy Pattern**: Different request handlers for POST, GET, and DELETE operations
-2. **Decorator Pattern**: Fastify instance decoration for external access
-3. **Observer Pattern**: Event-driven session management
-4. **Factory Pattern**: Session creation and management
-
-### Core Components
-
-```txt
-┌─────────────────────────────────────────┐
-│           Fastify Application           │
-├─────────────────────────────────────────┤
-│      FastifyMcpStreamableHttpPlugin     │
-├─────────────────────────────────────────┤
-│    FastifyMcpStreamableHttpServer       │
-├──────────────┬──────────────────────────┤
-│ SessionManager │     Request Handlers    │
-│               │  ┌─────────────────────┐ │
-│  - Session    │  │ PostRequestHandler  │ │
-│    Lifecycle  │  │ GetRequestHandler   │ │
-│  - Event      │  │ DeleteRequestHandler│ │
-│    Emission   │  └─────────────────────┘ │
-└──────────────┴──────────────────────────┘
-```
 
 ### Session Management
 
