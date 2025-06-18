@@ -151,15 +151,6 @@ The plugin exposes three HTTP endpoints for MCP communication:
 - **Headers**:
   - `mcp-session-id: <session-id>` (required)
 
-### Design Patterns
-
-The plugin employs several design patterns for maintainability and extensibility:
-
-1. **Strategy Pattern**: Different request handlers for POST, GET, and DELETE operations
-2. **Decorator Pattern**: Fastify instance decoration for external access
-3. **Observer Pattern**: Event-driven session management
-4. **Factory Pattern**: Session creation and management
-
 ### Core Components
 
 ```txt
