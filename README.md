@@ -7,6 +7,44 @@ A robust Fastify plugin that provides seamless integration with the Model Contex
 [![CI](https://github.com/flaviodelgrosso/fastify-mcp-server/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/flaviodelgrosso/fastify-mcp-server/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/flaviodelgrosso/fastify-mcp-server/graph/badge.svg?token=4ZGUR6VXTJ)](https://codecov.io/gh/flaviodelgrosso/fastify-mcp-server)
 
+## Table of Contents
+
+- [Fastify MCP Server Plugin](#fastify-mcp-server-plugin)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Features](#features)
+    - [Core Functionality](#core-functionality)
+    - [Advanced Features](#advanced-features)
+  - [Installation](#installation)
+  - [Quick Demo](#quick-demo)
+  - [Quick Start](#quick-start)
+  - [API Reference](#api-reference)
+    - [Plugin Options](#plugin-options)
+    - [MCP Decorator](#mcp-decorator)
+    - [Session Events](#session-events)
+  - [HTTP Protocol](#http-protocol)
+    - [POST `/mcp`](#post-mcp)
+    - [GET `/mcp`](#get-mcp)
+    - [DELETE `/mcp`](#delete-mcp)
+    - [Session Management](#session-management)
+  - [Advanced Usage](#advanced-usage)
+    - [Custom Error Handling](#custom-error-handling)
+    - [Health Monitoring](#health-monitoring)
+    - [Graceful Shutdown](#graceful-shutdown)
+  - [Authentication: Bearer Token Support](#authentication-bearer-token-support)
+    - [Enabling Bearer Token Authentication](#enabling-bearer-token-authentication)
+    - [How It Works](#how-it-works)
+      - [Example Error Response](#example-error-response)
+  - [Development](#development)
+    - [Setup](#setup)
+    - [Scripts](#scripts)
+    - [Testing](#testing)
+  - [Troubleshooting](#troubleshooting)
+    - [Common Issues](#common-issues)
+  - [Contributing](#contributing)
+  - [License](#license)
+  - [Related Projects](#related-projects)
+
 ## Overview
 
 The Model Context Protocol (MCP) is an open standard that enables AI assistants to securely connect to external data sources and tools. This plugin provides a streamable HTTP transport implementation for MCP servers built with Fastify, offering:
@@ -40,6 +78,17 @@ The Model Context Protocol (MCP) is an open standard that enables AI assistants 
 ```bash
 npm install fastify-mcp-server @modelcontextprotocol/sdk
 ```
+
+## Quick Demo
+
+To quickly see the plugin in action, you can run the following example:
+
+```bash
+npm run dev
+npm run inspector
+```
+
+This will start a Fastify server with the MCP plugin enabled, allowing you to interact with it via the MCP inspector or any MCP-compatible client.
 
 ## Quick Start
 
@@ -151,25 +200,6 @@ The plugin exposes three HTTP endpoints for MCP communication:
 - **Headers**:
   - `mcp-session-id: <session-id>` (required)
 
-### Core Components
-
-```txt
-┌─────────────────────────────────────────┐
-│             Fastify Application             │
-├─────────────────────────────────────────┤
-│              FastifyMcpPlugin               │
-├─────────────────────────────────────────┤
-│              FastifyMcpServer               │
-├──────────────┬──────────────────────────┤
-│ SessionManager │     Request Handlers   │
-│               │  ┌─────────────────────┐ │
-│  - Session    │  │ PostRequestHandler  │ │
-│    Lifecycle  │  │ GetRequestHandler   │ │
-│  - Event      │  │ DeleteRequestHandler│ │
-│    Emission   │  └─────────────────────┘ │
-└──────────────┴──────────────────────────┘
-```
-
 ### Session Management
 
 Sessions are managed through a dedicated `SessionManager` class that:
@@ -223,6 +253,53 @@ closeWithGrace({ delay: 500 }, async ({ signal, err }) => {
 });
 ```
 
+## Authentication: Bearer Token Support
+
+You can secure your MCP endpoints using Bearer token authentication. The plugin provides a `bearerMiddleware` option, which enables validation of Bearer tokens in the `Authorization` header for all MCP requests.
+
+### Enabling Bearer Token Authentication
+
+Pass the `bearerMiddleware` option when registering the plugin:
+
+```typescript
+import { addBearerPreHandlerHook } from 'fastify-mcp-server';
+
+await app.register(FastifyMcpServer, {
+  server: mcp.server,
+  bearerMiddleware: {
+    verifier: myVerifier, // implements verifyAccessToken(token)
+    requiredScopes: ['mcp:read', 'mcp:write'], // optional
+    resourceMetadataUrl: 'https://example.com/.well-known/oauth-resource', // optional
+  }
+});
+```
+
+- **verifier**: An object with a `verifyAccessToken(token)` method that returns the decoded token info or throws on failure.
+- **requiredScopes**: (Optional) Array of scopes required for access.
+- **resourceMetadataUrl**: (Optional) URL included in the `WWW-Authenticate` header for 401 responses.
+
+### How It Works
+
+The plugin uses a Fastify `preHandler` hook (see `addBearerPreHandlerHook`) to:
+
+- Extract the Bearer token from the `Authorization` header (`Authorization: Bearer TOKEN`).
+- Validate the token using your verifier.
+- Check for required scopes and token expiration.
+- Attach the decoded auth info to the request object (`req.raw.auth`).
+- Respond with proper OAuth2 error codes and `WWW-Authenticate` headers on failure.
+
+#### Example Error Response
+
+If authentication fails, the response will include a `WWW-Authenticate` header:
+
+```txt
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer error="invalid_token", error_description="Token has expired"
+Content-Type: application/json
+
+{"error":"invalid_token","error_description":"Token has expired"}
+```
+
 ## Development
 
 ### Setup
@@ -253,59 +330,6 @@ The project maintains 100% test coverage. Run tests with:
 
 ```bash
 npm test
-```
-
-### Code Quality
-
-The project uses several tools to maintain code quality:
-
-- **Biome**: Linting and formatting
-- **TypeScript**: Type checking
-- **Husky**: Git hooks
-- **lint-staged**: Pre-commit checks
-- **Commitlint**: Conventional commit messages
-
-## Examples
-
-### Basic MCP Server
-
-```typescript
-import Fastify from 'fastify';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import FastifyMcpServer from 'fastify-mcp-server';
-
-const app = Fastify({ logger: true });
-const mcp = new McpServer({ name: 'basic-server', version: '1.0.0' });
-
-// Simple tool
-mcp.tool('get-time', () => ({
-  content: [{ type: 'text', text: new Date().toISOString() }]
-}));
-
-await app.register(FastifyMcpServer, { server: mcp.server });
-await app.listen({ port: 3000 });
-```
-
-### Advanced Server with Resources
-
-```typescript
-// Define resources
-mcp.resource('users', () => ({
-  uri: 'users://list',
-  mimeType: 'application/json',
-  text: JSON.stringify([
-    { id: 1, name: 'John Doe' },
-    { id: 2, name: 'Jane Smith' }
-  ])
-}));
-
-// Define tools that use resources
-mcp.tool('list-users', () => ({
-  content: [{ 
-    type: 'resource', 
-    resource: { uri: 'users://list' }
-  }]
-}));
 ```
 
 ## Troubleshooting
