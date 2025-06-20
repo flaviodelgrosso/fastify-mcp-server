@@ -1,44 +1,31 @@
-import type { FastifyReply } from 'fastify';
+import { McpError } from '@modelcontextprotocol/sdk/types.js';
+import type { FastifyInstance } from 'fastify';
 
-type McpError = {
-  code: number;
-  message: string;
-};
-
-const MCP_ERRORS = {
-  INVALID_SESSION: {
-    code: -32000,
-    message: 'No valid session ID provided'
-  },
-  SESSION_NOT_FOUND: {
-    code: -32001,
-    message: 'Session not found'
-  },
-  INVALID_REQUEST: {
-    code: -32002,
-    message: 'Invalid request format'
+export class InvalidRequestError extends McpError {
+  constructor () {
+    super(-32600, 'Invalid request');
+    this.name = 'InvalidRequestError';
   }
-} as const;
+}
 
-/**
- * Sends a standardized error response for MCP operations
- */
-export function sendMcpError (reply: FastifyReply, error: McpError, id: string | null = null) {
-  reply.status(400).send({
-    jsonrpc: '2.0',
-    error,
-    id
+export class SessionNotFoundError extends McpError {
+  constructor () {
+    super(-32003, 'Session not found');
+    this.name = 'SessionNotFoundError';
+  }
+}
+
+export function setErrorHandler (app: FastifyInstance) {
+  app.setErrorHandler((err, _req, reply) => {
+    app.log.error({ err }, 'MCP Error Handler');
+
+    return reply.status(400).send({
+      jsonrpc: '2.0',
+      error: {
+        code: err.validation ? -32001 : err.code,
+        message: err.validation ? 'MCP error -32001: Invalid session header' : err.message
+      },
+      id: null
+    });
   });
-}
-
-export function sendInvalidSession (reply: FastifyReply) {
-  sendMcpError(reply, MCP_ERRORS.INVALID_SESSION);
-}
-
-export function sendSessionNotFound (reply: FastifyReply) {
-  sendMcpError(reply, MCP_ERRORS.SESSION_NOT_FOUND);
-}
-
-export function sendInvalidRequest (reply: FastifyReply) {
-  sendMcpError(reply, MCP_ERRORS.INVALID_REQUEST);
 }

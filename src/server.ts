@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 
 import { addBearerPreHandlerHook } from './bearer.ts';
+import { setErrorHandler } from './errors.ts';
 import {
   DeleteRequestHandler,
   GetRequestHandler,
@@ -72,11 +73,23 @@ export class FastifyMcpServer {
         addBearerPreHandlerHook(app, this.options.bearerMiddleware);
       }
 
+      setErrorHandler(app);
+
       app.route({
         method: 'POST',
         url: this.endpoint,
         handler: async (req, reply) => {
           await this.handlers.post.handle(req, reply);
+        },
+        schema: {
+          tags: ['MCP'],
+          summary: 'Initialize a new MCP session or send a message',
+          headers: {
+            type: 'object',
+            properties: {
+              'mcp-session-id': { type: 'string', format: 'uuid' }
+            }
+          }
         }
       });
 
@@ -85,6 +98,17 @@ export class FastifyMcpServer {
         url: this.endpoint,
         handler: async (req, reply) => {
           await this.handlers.get.handle(req, reply);
+        },
+        schema: {
+          tags: ['MCP'],
+          summary: 'Get session status or receive messages',
+          headers: {
+            type: 'object',
+            properties: {
+              'mcp-session-id': { type: 'string', format: 'uuid' }
+            },
+            required: ['mcp-session-id']
+          }
         }
       });
 
@@ -93,6 +117,17 @@ export class FastifyMcpServer {
         url: this.endpoint,
         handler: async (req, reply) => {
           await this.handlers.delete.handle(req, reply);
+        },
+        schema: {
+          tags: ['MCP'],
+          summary: 'Delete an MCP session',
+          headers: {
+            type: 'object',
+            properties: {
+              'mcp-session-id': { type: 'string', format: 'uuid' }
+            },
+            required: ['mcp-session-id']
+          }
         }
       });
     });

@@ -1,9 +1,8 @@
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import { sendInvalidRequest, sendSessionNotFound } from './errors.ts';
+import { InvalidRequestError, SessionNotFoundError } from './errors.ts';
 import type { SessionManager } from './session-manager.ts';
-import { SessionValidator } from './session-validator.ts';
 
 export type McpHandlers = {
   post: PostRequestHandler;
@@ -15,36 +14,40 @@ type McpRequestHandler = {
   handle(request: FastifyRequest, reply: FastifyReply): Promise<void>;
 };
 
+const MCP_SESSION_ID_HEADER = 'mcp-session-id';
+
 /**
  * Handles POST requests - creates new sessions or uses existing ones
  */
 export class PostRequestHandler implements McpRequestHandler {
   private sessionManager: SessionManager;
-  private sessionValidator: SessionValidator;
 
   constructor (sessionManager: SessionManager) {
     this.sessionManager = sessionManager;
-    this.sessionValidator = new SessionValidator(sessionManager);
   }
 
   async handle (request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const validation = this.sessionValidator.validateSession(request.headers, false);
+    const sessionId = request.headers[MCP_SESSION_ID_HEADER] as string | undefined;
 
-    if (validation.sessionId && validation.transport) {
-      // Existing session
-      await validation.transport.handleRequest(request.raw, reply.raw, request.body);
-    } else if (!validation.sessionId) {
-      // New session - must be initialize request
-      if (!isInitializeRequest(request.body)) {
-        return sendInvalidRequest(reply);
-      }
-
-      const transport = await this.sessionManager.createSession();
-      await transport.handleRequest(request.raw, reply.raw, request.body);
-    } else {
-      // Invalid session ID provided
-      sendSessionNotFound(reply);
+    // If no session ID and not an initialize request, it's invalid
+    const isInit = isInitializeRequest(request.body);
+    if (!sessionId && !isInit) {
+      throw new InvalidRequestError();
     }
+
+    if (sessionId) {
+      // Validate existing session
+      const transport = this.sessionManager.getSession(sessionId);
+      if (!transport) {
+        throw new SessionNotFoundError();
+      }
+      // Delegate to session transport
+      return await transport.handleRequest(request.raw, reply.raw, request.body);
+    }
+
+    // No sessionId, but is an initialize request: create new session
+    const transport = await this.sessionManager.createSession();
+    await transport.handleRequest(request.raw, reply.raw, request.body);
   }
 }
 
@@ -52,18 +55,22 @@ export class PostRequestHandler implements McpRequestHandler {
  * Handles GET requests - requires existing session
  */
 export class GetRequestHandler implements McpRequestHandler {
-  private sessionValidator: SessionValidator;
+  private sessionManager: SessionManager;
 
   constructor (sessionManager: SessionManager) {
-    this.sessionValidator = new SessionValidator(sessionManager);
+    this.sessionManager = sessionManager;
   }
 
   async handle (request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const validation = await this.sessionValidator.validateSessionOrRespond(request.raw.headers, reply, true);
+    // Schema validation ensures mcp-session-id header is present
+    const sessionId = request.headers[MCP_SESSION_ID_HEADER] as string;
 
-    if (!validation?.transport) return;
+    const transport = this.sessionManager.getSession(sessionId);
+    if (!transport) {
+      throw new SessionNotFoundError();
+    }
 
-    await validation.transport.handleRequest(request.raw, reply.raw, request.body);
+    await transport.handleRequest(request.raw, reply.raw, request.body);
   }
 }
 
@@ -72,21 +79,23 @@ export class GetRequestHandler implements McpRequestHandler {
  */
 export class DeleteRequestHandler implements McpRequestHandler {
   private sessionManager: SessionManager;
-  private sessionValidator: SessionValidator;
 
   constructor (sessionManager: SessionManager) {
     this.sessionManager = sessionManager;
-    this.sessionValidator = new SessionValidator(sessionManager);
   }
 
   async handle (request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const validation = await this.sessionValidator.validateSessionOrRespond(request.raw.headers, reply, true);
+    // Schema validation ensures mcp-session-id header is present
+    const sessionId = request.headers[MCP_SESSION_ID_HEADER] as string;
 
-    if (!validation?.transport || !validation.sessionId) return;
+    const transport = this.sessionManager.getSession(sessionId);
+    if (!transport) {
+      throw new SessionNotFoundError();
+    }
 
-    await validation.transport.handleRequest(request.raw, reply.raw, request.body);
+    await transport.handleRequest(request.raw, reply.raw, request.body);
 
     // Manually clean up session as SDK doesn't always trigger onclose
-    this.sessionManager.destroySession(validation.sessionId);
+    this.sessionManager.destroySession(sessionId);
   }
 }
