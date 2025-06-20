@@ -15,7 +15,7 @@ export class SessionNotFoundError extends McpError {
   }
 }
 
-export function setErrorHandler (app: FastifyInstance) {
+export function setMcpErrorHandler (app: FastifyInstance) {
   app.setErrorHandler((err, _req, reply) => {
     app.log.error({ err }, 'MCP Error Handler');
 

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 
 import { addBearerPreHandlerHook } from './bearer.ts';
-import { setErrorHandler } from './errors.ts';
+import { setMcpErrorHandler } from './errors.ts';
 import {
   DeleteRequestHandler,
   GetRequestHandler,
@@ -73,7 +73,7 @@ export class FastifyMcpServer {
         addBearerPreHandlerHook(app, this.options.bearerMiddleware);
       }
 
-      setErrorHandler(app);
+      setMcpErrorHandler(app);
 
       app.route({
         method: 'POST',
