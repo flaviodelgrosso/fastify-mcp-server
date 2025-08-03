@@ -2,6 +2,7 @@ import { InsufficientScopeError, InvalidTokenError, OAuthError, ServerError } fr
 import type { BearerAuthMiddlewareOptions } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+
 /**
  * Middleware that requires a valid Bearer token in the Authorization header.
  * This will validate the token with the auth provider and add the resulting auth info to the request object.
@@ -10,7 +11,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 export function addBearerPreHandlerHook (app: FastifyInstance, options: BearerAuthMiddlewareOptions) {
   const { verifier, requiredScopes = [], resourceMetadataUrl } = options;
 
-  app.addHook('preHandler', async (req, reply) => {
+  app.addHook('onRequest', async (req, reply) => {
     try {
       const authInfo = await getAuthInfo(req, verifier, requiredScopes);
       Object.assign(req.raw, { auth: authInfo }); // Ensure raw request also has auth info
