@@ -41,11 +41,12 @@
     "clean": "rimraf node_modules dist coverage"
   },
   "peerDependencies": {
-    "fastify": "^5.x",
-    "@modelcontextprotocol/sdk": "^1.x"
+    "@modelcontextprotocol/sdk": "^1.x",
+    "fastify": "^5.x"
   },
   "dependencies": {
-    "fastify-plugin": "^5.0.1"
+    "fastify-plugin": "^5.0.1",
+    "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

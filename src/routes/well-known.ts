@@ -1,5 +1,7 @@
+import { OAuthMetadataSchema, OAuthProtectedResourceMetadataSchema } from '@modelcontextprotocol/sdk/shared/auth.js';
 import type { FastifyInstance } from 'fastify';
 import fp from 'fastify-plugin';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import type { AuthorizationOptions } from '../types.ts';
 
@@ -17,6 +19,11 @@ async function wellKnownRoutesPlugin (app: FastifyInstance, options: WellKnownRo
   app.route({
     method: 'GET',
     url: '/.well-known/oauth-authorization-server',
+    schema: {
+      response: {
+        200: zodToJsonSchema(OAuthMetadataSchema)
+      }
+    },
     handler: async (_request, reply) => {
       return reply.send(authorizationServerOAuthMetadata);
     }
@@ -25,6 +32,11 @@ async function wellKnownRoutesPlugin (app: FastifyInstance, options: WellKnownRo
   app.route({
     method: 'GET',
     url: '/.well-known/oauth-protected-resource',
+    schema: {
+      response: {
+        200: zodToJsonSchema(OAuthProtectedResourceMetadataSchema)
+      }
+    },
     handler: async (_request, reply) => {
       reply.header('Content-Type', 'application/json');
       reply.header('Cache-Control', 'public, max-age=3600');
