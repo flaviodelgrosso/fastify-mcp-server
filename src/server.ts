@@ -1,16 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 
-import { addBearerPreHandlerHook } from './bearer.ts';
-import { setMcpErrorHandler } from './errors.ts';
-import {
-  DeleteRequestHandler,
-  GetRequestHandler,
-  type McpHandlers,
-  PostRequestHandler
-} from './handlers.ts';
-import type { FastifyMcpServerOptions } from './index.ts';
+import mcpRoutes from './routes/mcp.ts';
+import wellKnownRoutes from './routes/well-known.ts';
 import { SessionManager } from './session-manager.ts';
-import { registerOAuthAuthorizationServerRoute, registerOAuthProtectedResourceRoute } from './well-known.ts';
+import type { FastifyMcpServerOptions } from './types.ts';
 
 const MCP_DEFAULT_ENDPOINT = '/mcp';
 
@@ -20,7 +13,6 @@ const MCP_DEFAULT_ENDPOINT = '/mcp';
 export class FastifyMcpServer {
   private fastify: FastifyInstance;
   private options: FastifyMcpServerOptions;
-  private handlers: McpHandlers;
   private sessionManager: SessionManager;
 
   constructor (app: FastifyInstance, options: FastifyMcpServerOptions) {
@@ -30,22 +22,14 @@ export class FastifyMcpServer {
     // Initialize session manager
     this.sessionManager = new SessionManager(options.server);
 
-    // Initialize request handlers using Strategy pattern
-    this.handlers = {
-      post: new PostRequestHandler(this.sessionManager),
-      get: new GetRequestHandler(this.sessionManager),
-      delete: new DeleteRequestHandler(this.sessionManager)
-    };
-
-    if (options.authorizationServerOAuthMetadata) {
-      registerOAuthAuthorizationServerRoute(app, options.authorizationServerOAuthMetadata);
-    }
-
-    if (options.protectedResourceOAuthMetadata) {
-      registerOAuthProtectedResourceRoute(app, options.protectedResourceOAuthMetadata);
-    }
-
-    this.registerMcpRoutes();
+    // Register OAuth metadata routes if oauth2 config is provided
+    this.fastify.register(wellKnownRoutes, { config: options.authorization?.oauth2 });
+    // Register MCP routes
+    this.fastify.register(mcpRoutes, {
+      sessionManager: this.sessionManager,
+      endpoint: this.endpoint,
+      bearerMiddlewareOptions: options.authorization?.bearerMiddlewareOptions
+    });
   }
 
   /**
@@ -71,75 +55,6 @@ export class FastifyMcpServer {
   public async shutdown (): Promise<void> {
     this.sessionManager.destroyAllSessions();
     await this.options.server.close();
-  }
-
-  /**
-   * Registers all HTTP routes with their respective handlers
-   */
-  private registerMcpRoutes (): void {
-    this.fastify.register((app) => {
-      if (this.options.bearerMiddlewareOptions) {
-        addBearerPreHandlerHook(app, this.options.bearerMiddlewareOptions);
-      }
-
-      setMcpErrorHandler(app);
-
-      app.route({
-        method: 'POST',
-        url: this.endpoint,
-        handler: async (req, reply) => {
-          await this.handlers.post.handle(req, reply);
-        },
-        schema: {
-          tags: ['MCP'],
-          summary: 'Initialize a new MCP session or send a message',
-          headers: {
-            type: 'object',
-            properties: {
-              'mcp-session-id': { type: 'string', format: 'uuid' }
-            }
-          }
-        }
-      });
-
-      app.route({
-        method: 'GET',
-        url: this.endpoint,
-        handler: async (req, reply) => {
-          await this.handlers.get.handle(req, reply);
-        },
-        schema: {
-          tags: ['MCP'],
-          summary: 'Get session status or receive messages',
-          headers: {
-            type: 'object',
-            properties: {
-              'mcp-session-id': { type: 'string', format: 'uuid' }
-            },
-            required: ['mcp-session-id']
-          }
-        }
-      });
-
-      app.route({
-        method: 'DELETE',
-        url: this.endpoint,
-        handler: async (req, reply) => {
-          await this.handlers.delete.handle(req, reply);
-        },
-        schema: {
-          tags: ['MCP'],
-          summary: 'Delete an MCP session',
-          headers: {
-            type: 'object',
-            properties: {
-              'mcp-session-id': { type: 'string', format: 'uuid' }
-            },
-            required: ['mcp-session-id']
-          }
-        }
-      });
-    });
   }
 
   private get endpoint (): string {

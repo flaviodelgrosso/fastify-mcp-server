@@ -3,7 +3,8 @@ import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
 
-import FastifyMcpStreamableHttp, { getMcpDecorator, type FastifyMcpServerOptions } from '../../src/index.ts';
+import FastifyMcpStreamableHttp, { getMcpDecorator } from '../../src/index.ts';
+import type { FastifyMcpServerOptions } from '../../src/types.ts';
 import { mcp } from '../mcp/server.ts';
 
 class BearerTokenVerifier implements OAuthTokenVerifier {
@@ -19,18 +20,22 @@ const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpServerOptions> = async (app
   await app.register(FastifyMcpStreamableHttp, {
     server: mcp.server,
     endpoint: '/mcp', // optional, defaults to '/mcp'
-    bearerMiddlewareOptions: {
-      verifier: new BearerTokenVerifier()
-    },
-    authorizationServerOAuthMetadata: {
-      issuer: 'https://demo.fastify-mcp-server.org',
-      authorization_endpoint: 'https://demo.fastify-mcp-server.org/authorize',
-      token_endpoint: 'https://demo.fastify-mcp-server.org/token',
-      registration_endpoint: 'https://demo.fastify-mcp-server.org/register',
-      response_types_supported: ['code']
-    },
-    protectedResourceOAuthMetadata: {
-      resource: 'https://demo.fastify-mcp-server.org/.well-known/oauth-protected-resource'
+    authorization: {
+      bearerMiddlewareOptions: {
+        verifier: new BearerTokenVerifier()
+      },
+      oauth2: {
+        authorizationServerOAuthMetadata: {
+          issuer: 'https://demo.fastify-mcp-server.org',
+          authorization_endpoint: 'https://demo.fastify-mcp-server.org/authorize',
+          token_endpoint: 'https://demo.fastify-mcp-server.org/token',
+          registration_endpoint: 'https://demo.fastify-mcp-server.org/register',
+          response_types_supported: ['code']
+        },
+        protectedResourceOAuthMetadata: {
+          resource: 'https://demo.fastify-mcp-server.org/.well-known/oauth-protected-resource'
+        }
+      }
     }
   });
 

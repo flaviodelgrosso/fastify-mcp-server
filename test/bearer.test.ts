@@ -24,8 +24,10 @@ describe('Bearer Token', async () => {
 
   test('should accept a request with a valid Bearer token', async () => {
     const app = await buildApp({
-      bearerMiddlewareOptions: {
-        verifier: mockVerifier
+      authorization: {
+        bearerMiddlewareOptions: {
+          verifier: mockVerifier
+        }
       }
     });
 
@@ -57,8 +59,10 @@ describe('Bearer Token', async () => {
 
   test('should reject a request without a Bearer token', async () => {
     const app = await buildApp({
-      bearerMiddlewareOptions: {
-        verifier: mockVerifier
+      authorization: {
+        bearerMiddlewareOptions: {
+          verifier: mockVerifier
+        }
       }
     });
 
@@ -86,8 +90,10 @@ describe('Bearer Token', async () => {
 
   test('should reject a request with a malformed Bearer token', async () => {
     const app = await buildApp({
-      bearerMiddlewareOptions: {
-        verifier: mockVerifier
+      authorization: {
+        bearerMiddlewareOptions: {
+          verifier: mockVerifier
+        }
       }
     });
 
@@ -116,8 +122,10 @@ describe('Bearer Token', async () => {
 
   test('should reject a request with an expired Bearer token', async () => {
     const app = await buildApp({
-      bearerMiddlewareOptions: {
-        verifier: mockVerifier
+      authorization: {
+        bearerMiddlewareOptions: {
+          verifier: mockVerifier
+        }
       }
     });
 
@@ -149,9 +157,11 @@ describe('Bearer Token', async () => {
 
   test('should reject a request with a Bearer token that has insufficient scope', async () => {
     const app = await buildApp({
-      bearerMiddlewareOptions: {
-        verifier: mockVerifier,
-        requiredScopes: ['mcp:required-scope']
+      authorization: {
+        bearerMiddlewareOptions: {
+          verifier: mockVerifier,
+          requiredScopes: ['mcp:required-scope']
+        }
       }
     });
 
@@ -183,8 +193,10 @@ describe('Bearer Token', async () => {
 
   test('should reject with ServerError', async () => {
     const app = await buildApp({
-      bearerMiddlewareOptions: {
-        verifier: mockVerifier
+      authorization: {
+        bearerMiddlewareOptions: {
+          verifier: mockVerifier
+        }
       }
     });
 
@@ -216,8 +228,10 @@ describe('Bearer Token', async () => {
 
   test('should reject with OAuthError', async () => {
     const app = await buildApp({
-      bearerMiddlewareOptions: {
-        verifier: mockVerifier
+      authorization: {
+        bearerMiddlewareOptions: {
+          verifier: mockVerifier
+        }
       }
     });
 
@@ -244,13 +258,15 @@ describe('Bearer Token', async () => {
     });
 
     strictEqual(response.statusCode, 400);
-    deepStrictEqual(response.json(), { error: 'invalid_grant', error_description: 'Audience validation failed' });
+    deepStrictEqual(response.json(), { error_description: 'invalid_grant', error_uri: 'Audience validation failed' });
   });
 
   test('should handle unexpected error', async () => {
     const app = await buildApp({
-      bearerMiddlewareOptions: {
-        verifier: mockVerifier
+      authorization: {
+        bearerMiddlewareOptions: {
+          verifier: mockVerifier
+        }
       }
     });
 
@@ -282,9 +298,11 @@ describe('Bearer Token', async () => {
 
   test('should add WWW-Authenticate header with resource metadata URL', async () => {
     const app = await buildApp({
-      bearerMiddlewareOptions: {
-        verifier: mockVerifier,
-        resourceMetadataUrl: 'https://example.com/resource-metadata'
+      authorization: {
+        bearerMiddlewareOptions: {
+          verifier: mockVerifier,
+          resourceMetadataUrl: 'https://example.com/resource-metadata'
+        }
       }
     });
 

@@ -135,13 +135,17 @@ await app.listen({ host: '127.0.0.1', port: 3000 });
 type FastifyMcpServerOptions = {
   server: Server;      // MCP Server instance from @modelcontextprotocol/sdk
   endpoint?: string;   // Custom endpoint path (default: '/mcp')
-  bearerMiddlewareOptions?: {
-    verifier: OAuthTokenVerifier; // Custom verifier for Bearer tokens
-    requiredScopes?: string[]; // Optional scopes required for access
-    resourceMetadataUrl?: string; // Optional URL for resource metadata
+  authorization?: {    // Authorization configuration
+    bearerMiddlewareOptions?: {
+      verifier: OAuthTokenVerifier; // Custom verifier for Bearer tokens
+      requiredScopes?: string[]; // Optional scopes required for access
+      resourceMetadataUrl?: string; // Optional URL for resource metadata
+    };
+    oauth2?: {         // OAuth2 metadata configuration
+      authorizationServerOAuthMetadata: OAuthMetadata; // OAuth metadata for authorization server
+      protectedResourceOAuthMetadata: OAuthProtectedResourceMetadata; // OAuth metadata for protected resource
+    };
   };
-  authorizationServerOAuthMetadata?: OAuthMetadata; // OAuth metadata for authorization server
-  protectedResourceOAuthMetadata?: OAuthProtectedResourceMetadata; // OAuth metadata for protected resource
 }
 ```
 
@@ -270,7 +274,7 @@ You can secure your MCP endpoints using Bearer token authentication. The plugin 
 
 ### Enabling Bearer Token Authentication
 
-Pass the `bearerMiddlewareOptions` option when registering the plugin. It accepts `BearerAuthMiddlewareOptions` from the SDK:
+Pass the `authorization.bearerMiddlewareOptions` option when registering the plugin. It accepts `BearerAuthMiddlewareOptions` from the SDK:
 
 ```typescript
 import type { BearerAuthMiddlewareOptions } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
@@ -279,10 +283,12 @@ import type { BearerAuthMiddlewareOptions } from '@modelcontextprotocol/sdk/serv
 ```typescript
 await app.register(FastifyMcpServer, {
   server: mcp.server,
-  bearerMiddlewareOptions: {
-    verifier: myVerifier, // implements verifyAccessToken(token)
-    requiredScopes: ['mcp:read', 'mcp:write'], // optional
-    resourceMetadataUrl: 'https://example.com/.well-known/oauth-resource', // optional,
+  authorization: {
+    bearerMiddlewareOptions: {
+      verifier: myVerifier, // implements verifyAccessToken(token)
+      requiredScopes: ['mcp:read', 'mcp:write'], // optional
+      resourceMetadataUrl: 'https://example.com/.well-known/oauth-resource', // optional,
+    }
   }
 });
 ```
@@ -360,7 +366,7 @@ The plugin can automatically register standard OAuth 2.0 metadata endpoints unde
 
 ### Registering Well-Known Routes
 
-To enable these endpoints, provide the `authorizationServerOAuthMetadata` and/or `protectedResourceOAuthMetadata` options when registering the plugin:
+To enable these endpoints, provide the `authorization.oauth2.authorizationServerOAuthMetadata` and/or `authorization.oauth2.protectedResourceOAuthMetadata` options when registering the plugin:
 
 ```typescript
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -385,8 +391,12 @@ const protectedResourceMetadata = {
 
 await app.register(FastifyMcpServer, {
   server: mcp.server,
-  authorizationServerOAuthMetadata: authorizationServerMetadata, // Registers /.well-known/oauth-authorization-server
-  protectedResourceOAuthMetadata: protectedResourceMetadata,     // Registers /.well-known/oauth-protected-resource
+  authorization: {
+    oauth2: {
+      authorizationServerOAuthMetadata: authorizationServerMetadata, // Registers /.well-known/oauth-authorization-server
+      protectedResourceOAuthMetadata: protectedResourceMetadata,     // Registers /.well-known/oauth-protected-resource
+    }
+  }
 });
 ```
 
