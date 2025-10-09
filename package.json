@@ -39,7 +39,9 @@
     "lint:fix": "npm run lint -- --fix",
     "format": "prettier --write .",
     "inspector": "npx @modelcontextprotocol/inspector",
-    "clean": "rimraf node_modules dist coverage"
+    "clean": "rimraf node_modules dist coverage",
+    "version": "changeset version",
+    "publish": "changeset publish"
   },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": "^1.x",

@@ -1,22 +1,29 @@
 name: Release
 
-permissions:
-  contents: write
-
 on:
   push:
     tags:
-      - v[0-9]+.*
+      - 'v*.*.*'
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  create-release:
+  release:
+    name: Release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout Repo
+        uses: actions/checkout@v5
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
         with:
-          generate_release_notes: true
+          node-version-file: '.nvmrc'
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Create Release Pull Request
+        uses: changesets/action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
