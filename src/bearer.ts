@@ -1,4 +1,10 @@
-import { InsufficientScopeError, InvalidTokenError, OAuthError, ServerError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
+import {
+  InsufficientScopeError,
+  InvalidTokenError,
+  OAuthError,
+  ServerError
+} from '@modelcontextprotocol/sdk/server/auth/errors.js';
+
 import type { BearerAuthMiddlewareOptions } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -86,31 +92,21 @@ function buildWwwAuthenticateHeader (
   resourceMetadataUrl?: string
 ): string {
   const baseValue = `Bearer error="${error.errorCode}", error_description="${error.message}"`;
-  return resourceMetadataUrl
-    ? `${baseValue}, resource_metadata="${resourceMetadataUrl}"`
-    : baseValue;
+  return resourceMetadataUrl ? `${baseValue}, resource_metadata="${resourceMetadataUrl}"` : baseValue;
 }
 
 /**
  * Handles authentication errors and sends appropriate responses
  */
-function sendAuthError (
-  error: unknown,
-  reply: FastifyReply,
-  resourceMetadataUrl?: string
-) {
+function sendAuthError (error: unknown, reply: FastifyReply, resourceMetadataUrl?: string) {
   if (error instanceof InvalidTokenError) {
     const wwwAuthValue = buildWwwAuthenticateHeader(error, resourceMetadataUrl);
-    return reply.header('WWW-Authenticate', wwwAuthValue)
-      .status(401)
-      .send(error.toResponseObject());
+    return reply.header('WWW-Authenticate', wwwAuthValue).status(401).send(error.toResponseObject());
   }
 
   if (error instanceof InsufficientScopeError) {
     const wwwAuthValue = buildWwwAuthenticateHeader(error, resourceMetadataUrl);
-    return reply.header('WWW-Authenticate', wwwAuthValue)
-      .status(403)
-      .send(error.toResponseObject());
+    return reply.header('WWW-Authenticate', wwwAuthValue).status(403).send(error.toResponseObject());
   }
 
   if (error instanceof ServerError) {

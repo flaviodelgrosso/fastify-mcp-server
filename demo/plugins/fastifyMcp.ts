@@ -1,11 +1,12 @@
-import type { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provider.js';
-import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
-import type { FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
 
 import FastifyMcpStreamableHttp, { getMcpDecorator } from '../../src/index.ts';
-import type { FastifyMcpServerOptions } from '../../src/types.ts';
 import { mcp } from '../mcp/server.ts';
+
+import type { FastifyMcpServerOptions } from '../../src/types.ts';
+import type { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provider.js';
+import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
+import type { FastifyPluginAsync } from 'fastify';
 
 class BearerTokenVerifier implements OAuthTokenVerifier {
   verifyAccessToken (token: string): Promise<AuthInfo> {

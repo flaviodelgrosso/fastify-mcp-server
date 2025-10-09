@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 
-import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
 type SessionsEvents = {
   sessionCreated: [string];

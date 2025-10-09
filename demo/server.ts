@@ -34,7 +34,11 @@ async function startServer () {
 
   // Start server
   try {
-    await app.listen({ host: '127.0.0.1', port: 9080, listenTextResolver: (address) => `Fastify MCP Server Demo listening at ${address}` });
+    await app.listen({
+      host: '127.0.0.1',
+      port: 9080,
+      listenTextResolver: (address) => `Fastify MCP Server Demo listening at ${address}`
+    });
   } catch (err) {
     app.log.error(err);
     process.exit(1);

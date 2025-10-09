@@ -1,8 +1,9 @@
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
-import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { InvalidRequestError, SessionNotFoundError } from './errors.ts';
+
 import type { SessionManager } from './session-manager.ts';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 
 export type McpHandlers = {
   post: PostRequestHandler;
@@ -11,7 +12,7 @@ export type McpHandlers = {
 };
 
 type McpRequestHandler = {
-  handle(request: FastifyRequest, reply: FastifyReply): Promise<void>;
+  handle (request: FastifyRequest, reply: FastifyReply): Promise<void>;
 };
 
 const MCP_SESSION_ID_HEADER = 'mcp-session-id';

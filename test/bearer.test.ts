@@ -2,10 +2,11 @@ import { strictEqual, deepStrictEqual } from 'node:assert';
 import { afterEach, describe, mock, test } from 'node:test';
 
 import { OAuthError, ServerError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
-import type { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provider.js';
-import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 
 import { buildApp } from './setupTests.ts';
+
+import type { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provider.js';
+import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 
 class MockBearerTokenVerifier implements OAuthTokenVerifier {
   verifyAccessToken (token: string): Promise<AuthInfo> {
@@ -131,7 +132,12 @@ describe('Bearer Token', async () => {
 
     mock.method(mockVerifier, 'verifyAccessToken', (token: string) => {
       return new Promise((resolve) => {
-        resolve({ token, clientId: 'mock-client-id', scopes: ['mcp:mocked-scope'], expiresAt: Math.floor(Date.now() / 1000) - 60 });
+        resolve({
+          token,
+          clientId: 'mock-client-id',
+          scopes: ['mcp:mocked-scope'],
+          expiresAt: Math.floor(Date.now() / 1000) - 60
+        });
       });
     });
 
@@ -323,6 +329,9 @@ describe('Bearer Token', async () => {
     });
 
     strictEqual(response.statusCode, 401);
-    strictEqual(response.headers['www-authenticate'], 'Bearer error="invalid_token", error_description="Invalid Authorization header format, expected \'Bearer TOKEN\'", resource_metadata="https://example.com/resource-metadata"');
+    strictEqual(
+      response.headers['www-authenticate'],
+      'Bearer error="invalid_token", error_description="Invalid Authorization header format, expected \'Bearer TOKEN\'", resource_metadata="https://example.com/resource-metadata"'
+    );
   });
 });

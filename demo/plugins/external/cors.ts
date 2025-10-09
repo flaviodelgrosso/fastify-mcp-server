@@ -10,22 +10,9 @@ const HEADERS = {
 
 export const autoConfig: FastifyCorsOptions = {
   origin: true,
-  allowedHeaders: [
-    HEADERS.CONTENT_TYPE,
-    HEADERS.AUTHORIZATION,
-    HEADERS.MCP_SESSION_ID,
-    HEADERS.MCP_PROTOCOL_VERSION
-  ],
-  methods: [
-    'GET',
-    'POST',
-    'DELETE',
-    'OPTIONS'
-  ],
-  exposedHeaders: [
-    HEADERS.MCP_SESSION_ID,
-    HEADERS.WWW_AUTHENTICATE
-  ]
+  allowedHeaders: [HEADERS.CONTENT_TYPE, HEADERS.AUTHORIZATION, HEADERS.MCP_SESSION_ID, HEADERS.MCP_PROTOCOL_VERSION],
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  exposedHeaders: [HEADERS.MCP_SESSION_ID, HEADERS.WWW_AUTHENTICATE]
 };
 
 export default FastifyCors;

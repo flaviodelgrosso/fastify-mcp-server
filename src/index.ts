@@ -1,8 +1,9 @@
-import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
 
 import { FastifyMcpServer } from './server.ts';
+
 import type { FastifyMcpServerOptions } from './types.ts';
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 
 declare module 'fastify' {
   interface FastifyInstance {

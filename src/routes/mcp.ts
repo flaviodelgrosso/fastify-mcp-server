@@ -1,11 +1,12 @@
-import type { FastifyInstance } from 'fastify';
 import fp from 'fastify-plugin';
 
 import { addBearerPreHandlerHook } from '../bearer.ts';
 import { setMcpErrorHandler } from '../errors.ts';
 import { PostRequestHandler, GetRequestHandler, DeleteRequestHandler } from '../handlers.ts';
+
 import type { SessionManager } from '../session-manager.ts';
 import type { AuthorizationOptions } from '../types.ts';
+import type { FastifyInstance } from 'fastify';
 
 type McpRoutesOptions = {
   endpoint: string;

@@ -31,7 +31,11 @@ describe('Sessions', async () => {
     });
 
     strictEqual(response.statusCode, 400);
-    deepStrictEqual(response.json(), { jsonrpc: '2.0', error: { code: -32600, message: 'MCP error -32600: Invalid request' }, id: null });
+    deepStrictEqual(response.json(), {
+      jsonrpc: '2.0',
+      error: { code: -32600, message: 'MCP error -32600: Invalid request' },
+      id: null
+    });
   });
 
   test('should accept a request without a session ID if it is an initialization request', async () => {
@@ -80,7 +84,11 @@ describe('Sessions', async () => {
     });
 
     strictEqual(response.statusCode, 400);
-    deepStrictEqual(response.json(), { jsonrpc: '2.0', error: { code: -32003, message: 'MCP error -32003: Session not found' }, id: null });
+    deepStrictEqual(response.json(), {
+      jsonrpc: '2.0',
+      error: { code: -32003, message: 'MCP error -32003: Session not found' },
+      id: null
+    });
   });
 
   test('should handle a request with a session ID for an existing session', async () => {
@@ -140,7 +148,11 @@ describe('Sessions', async () => {
     });
 
     strictEqual(response.statusCode, 400);
-    deepStrictEqual(response.json(), { jsonrpc: '2.0', error: { code: -32001, message: 'MCP error -32001: Invalid session header' }, id: null });
+    deepStrictEqual(response.json(), {
+      jsonrpc: '2.0',
+      error: { code: -32001, message: 'MCP error -32001: Invalid session header' },
+      id: null
+    });
   });
 
   test('should reject a GET request with a session ID for a non existent session', async () => {

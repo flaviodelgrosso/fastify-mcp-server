@@ -37,6 +37,7 @@
     "test:lcov": "c8 --100 --reporter=lcov node --test test/**/*.test.ts",
     "lint": "eslint",
     "lint:fix": "npm run lint -- --fix",
+    "format": "prettier --write .",
     "inspector": "npx @modelcontextprotocol/inspector",
     "clean": "rimraf node_modules dist coverage"
   },
@@ -63,6 +64,8 @@
     "lint-staged": "^16.2.3",
     "neostandard": "^0.12.1",
     "pino-pretty": "^13.0.0",
+    "prettier": "^3.6.2",
+    "prettier-plugin-space-before-function-paren": "^0.0.8",
     "rimraf": "^6.0.1",
     "typescript": "^5.9.3"
   },

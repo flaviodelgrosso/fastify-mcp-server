@@ -1,9 +1,9 @@
-import type { FastifyInstance } from 'fastify';
-
 import mcpRoutes from './routes/mcp.ts';
 import wellKnownRoutes from './routes/well-known.ts';
 import { SessionManager } from './session-manager.ts';
+
 import type { FastifyMcpServerOptions } from './types.ts';
+import type { FastifyInstance } from 'fastify';
 
 const MCP_DEFAULT_ENDPOINT = '/mcp';
 

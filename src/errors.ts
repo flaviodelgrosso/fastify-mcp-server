@@ -1,4 +1,5 @@
 import { McpError } from '@modelcontextprotocol/sdk/types.js';
+
 import type { FastifyInstance } from 'fastify';
 
 export class InvalidRequestError extends McpError {

@@ -1,9 +1,9 @@
 import { OAuthMetadataSchema, OAuthProtectedResourceMetadataSchema } from '@modelcontextprotocol/sdk/shared/auth.js';
-import type { FastifyInstance } from 'fastify';
 import fp from 'fastify-plugin';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
 import type { AuthorizationOptions } from '../types.ts';
+import type { FastifyInstance } from 'fastify';
 
 type WellKnownRoutesOptions = {
   config: AuthorizationOptions['oauth2'];

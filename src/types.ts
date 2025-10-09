@@ -4,21 +4,21 @@ import type { OAuthProtectedResourceMetadata, OAuthMetadata } from '@modelcontex
 
 export type AuthorizationOptions = {
   /**
-     * Options for the Bearer token middleware.
-     * @see {@link https://github.com/modelcontextprotocol/typescript-sdk/blob/main/src/server/auth/middleware/bearerAuth.ts | BearerAuthMiddlewareOptions}
-     */
+   * Options for the Bearer token middleware.
+   * @see {@link https://github.com/modelcontextprotocol/typescript-sdk/blob/main/src/server/auth/middleware/bearerAuth.ts | BearerAuthMiddlewareOptions}
+   */
   bearerMiddlewareOptions?: BearerAuthMiddlewareOptions;
   /**
-     * OAuth metadata for the authorization server and protected resources.
-     */
+   * OAuth metadata for the authorization server and protected resources.
+   */
   oauth2?: {
     /**
-       * These will be used to generate the .well-known `/oauth-authorization-server` endpoint.
-       */
+     * These will be used to generate the .well-known `/oauth-authorization-server` endpoint.
+     */
     authorizationServerOAuthMetadata: OAuthMetadata;
     /**
-       * This will be used to generate the .well-known `/oauth-protected-resource` endpoint.
-       */
+     * This will be used to generate the .well-known `/oauth-protected-resource` endpoint.
+     */
     protectedResourceOAuthMetadata: OAuthProtectedResourceMetadata;
   };
 };

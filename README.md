@@ -106,7 +106,7 @@ const app = Fastify({ logger: true });
 // Create MCP server instance
 const mcp = new McpServer({
   name: 'my-mcp-server',
-  version: '1.0.0',
+  version: '1.0.0'
 });
 
 // Define MCP tools
@@ -117,7 +117,7 @@ mcp.tool('hello-world', () => ({
 // Register the plugin
 await app.register(FastifyMcpServer, {
   server: mcp.server,
-  endpoint: '/mcp', // optional, defaults to '/mcp'
+  endpoint: '/mcp' // optional, defaults to '/mcp'
 });
 
 // Get MCP decorator for advanced features
@@ -133,20 +133,22 @@ await app.listen({ host: '127.0.0.1', port: 3000 });
 
 ```typescript
 type FastifyMcpServerOptions = {
-  server: Server;      // MCP Server instance from @modelcontextprotocol/sdk
-  endpoint?: string;   // Custom endpoint path (default: '/mcp')
-  authorization?: {    // Authorization configuration
+  server: Server; // MCP Server instance from @modelcontextprotocol/sdk
+  endpoint?: string; // Custom endpoint path (default: '/mcp')
+  authorization?: {
+    // Authorization configuration
     bearerMiddlewareOptions?: {
       verifier: OAuthTokenVerifier; // Custom verifier for Bearer tokens
       requiredScopes?: string[]; // Optional scopes required for access
       resourceMetadataUrl?: string; // Optional URL for resource metadata
     };
-    oauth2?: {         // OAuth2 metadata configuration
+    oauth2?: {
+      // OAuth2 metadata configuration
       authorizationServerOAuthMetadata: OAuthMetadata; // OAuth metadata for authorization server
       protectedResourceOAuthMetadata: OAuthProtectedResourceMetadata; // OAuth metadata for protected resource
     };
   };
-}
+};
 ```
 
 ### MCP Decorator
@@ -230,8 +232,8 @@ Sessions are managed through a dedicated `SessionManager` class that:
 ### Custom Error Handling
 
 ```typescript
-sessionManager.on('transportError', (sessionId, error) => { 
-    console.error(`Transport error: ${error.message}`);
+sessionManager.on('transportError', (sessionId, error) => {
+  console.error(`Transport error: ${error.message}`);
 });
 ```
 
@@ -242,7 +244,7 @@ sessionManager.on('transportError', (sessionId, error) => {
 setInterval(() => {
   const stats = mcpServer.getStats();
   console.log(`Health Check - Active Sessions: ${stats.activeSessions}`);
-  
+
   // Alert if too many sessions
   if (stats.activeSessions > 100) {
     console.warn('High session count detected');
@@ -261,7 +263,7 @@ closeWithGrace({ delay: 500 }, async ({ signal, err }) => {
   } else {
     app.log.info(`${signal} received, server closing`);
   }
-  
+
   // Shutdown MCP sessions before closing Fastify
   await mcpServer.shutdown();
   await app.close();
@@ -287,7 +289,7 @@ await app.register(FastifyMcpServer, {
     bearerMiddlewareOptions: {
       verifier: myVerifier, // implements verifyAccessToken(token)
       requiredScopes: ['mcp:read', 'mcp:write'], // optional
-      resourceMetadataUrl: 'https://example.com/.well-known/oauth-resource', // optional,
+      resourceMetadataUrl: 'https://example.com/.well-known/oauth-resource' // optional,
     }
   }
 });
@@ -341,22 +343,22 @@ Content-Type: application/json
 
 ```json
 {
-    "inputs": [
-        {
-            "type": "promptString",
-            "id": "bearer_token",
-            "description": "Enter your MCP Bearer Token",
-            "password": true
-        }
-    ],
-    "servers": {
-        "my-mcp-server": {
-            "url": "http://localhost:9080/mcp",
-            "headers": {
-                "Authorization": "Bearer ${input:bearer_token}"
-            }
-        }
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "bearer_token",
+      "description": "Enter your MCP Bearer Token",
+      "password": true
     }
+  ],
+  "servers": {
+    "my-mcp-server": {
+      "url": "http://localhost:9080/mcp",
+      "headers": {
+        "Authorization": "Bearer ${input:bearer_token}"
+      }
+    }
+  }
 }
 ```
 
@@ -374,18 +376,18 @@ import FastifyMcpServer from 'fastify-mcp-server';
 
 const mcp = new McpServer({
   name: 'my-mcp-server',
-  version: '1.0.0',
+  version: '1.0.0'
 });
 
 const authorizationServerMetadata = {
   issuer: 'https://your-domain.com',
   authorization_endpoint: 'https://your-domain.com/oauth/authorize',
-  token_endpoint: 'https://your-domain.com/oauth/token',
+  token_endpoint: 'https://your-domain.com/oauth/token'
   // ...other OAuth metadata fields
 };
 
 const protectedResourceMetadata = {
-  resource: 'https://your-domain.com/.well-known/oauth-protected-resource',
+  resource: 'https://your-domain.com/.well-known/oauth-protected-resource'
   // ...other resource metadata fields
 };
 
@@ -394,7 +396,7 @@ await app.register(FastifyMcpServer, {
   authorization: {
     oauth2: {
       authorizationServerOAuthMetadata: authorizationServerMetadata, // Registers /.well-known/oauth-authorization-server
-      protectedResourceOAuthMetadata: protectedResourceMetadata,     // Registers /.well-known/oauth-protected-resource
+      protectedResourceOAuthMetadata: protectedResourceMetadata // Registers /.well-known/oauth-protected-resource
     }
   }
 });
