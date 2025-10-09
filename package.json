@@ -1,7 +1,7 @@
 {
   "name": "fastify-mcp-server",
   "description": "Easily spin up Model Context Protocol (MCP) servers using Fastify",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "type": "module",
   "license": "ISC",
   "main": "dist/index.js",
