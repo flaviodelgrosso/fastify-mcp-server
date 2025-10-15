@@ -36,4 +36,14 @@ export type FastifyMcpServerOptions = {
    * Authorization options
    */
   authorization?: AuthorizationOptions;
+  /**
+   * Optional Redis configuration for session storage.
+   * If provided, sessions will be stored in Redis.
+   */
+  redis?: {
+    host: string;
+    port: number;
+    password?: string;
+    db?: number;
+  };
 };

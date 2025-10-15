@@ -1,20 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import { EventEmitter } from 'node:events';
 
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
-import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { SessionManager } from './base.ts';
 
-type SessionsEvents = {
-  sessionCreated: [string];
-  sessionDestroyed: [string];
-  transportError: [string, Error];
-};
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
 /**
  * Manages MCP sessions with proper lifecycle handling
  */
-export class SessionManager extends EventEmitter<SessionsEvents> {
+export class MemorySessionManager extends SessionManager {
   private sessions = new Map<string, StreamableHTTPServerTransport>();
   private server: Server;
 
