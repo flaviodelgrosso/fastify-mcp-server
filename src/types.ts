@@ -1,6 +1,7 @@
 import type { BearerAuthMiddlewareOptions } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import type { OAuthProtectedResourceMetadata, OAuthMetadata } from '@modelcontextprotocol/sdk/shared/auth.js';
+import type { RedisOptions } from 'ioredis';
 
 export type AuthorizationOptions = {
   /**
@@ -40,10 +41,5 @@ export type FastifyMcpServerOptions = {
    * Optional Redis configuration for session storage.
    * If provided, sessions will be stored in Redis.
    */
-  redis?: {
-    host: string;
-    port: number;
-    password?: string;
-    db?: number;
-  };
+  redis?: RedisOptions;
 };

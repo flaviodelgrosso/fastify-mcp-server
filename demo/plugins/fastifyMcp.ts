@@ -21,6 +21,11 @@ const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpServerOptions> = async (app
   await app.register(FastifyMcpStreamableHttp, {
     server: mcp.server,
     endpoint: '/mcp', // optional, defaults to '/mcp'
+    redis: {
+      host: 'localhost',
+      port: 6379,
+      db: 0
+    },
     authorization: {
       bearerMiddlewareOptions: {
         verifier: new BearerTokenVerifier()

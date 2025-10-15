@@ -1,5 +1,3 @@
-import { Redis } from 'ioredis';
-
 import mcpRoutes from './routes/mcp.ts';
 import wellKnownRoutes from './routes/well-known.ts';
 import { MemorySessionManager } from './session-manager/memory.ts';
@@ -25,8 +23,7 @@ export class FastifyMcpServer {
 
     // Initialize session manager
     if (options.redis) {
-      const redis = new Redis(options.redis);
-      this.sessionManager = new RedisSessionManager(redis);
+      this.sessionManager = new RedisSessionManager({ redis: options.redis, server: options.server });
     } else {
       this.sessionManager = new MemorySessionManager(options.server);
     }

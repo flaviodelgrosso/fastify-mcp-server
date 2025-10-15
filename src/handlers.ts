@@ -2,7 +2,7 @@ import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 
 import { InvalidRequestError, SessionNotFoundError } from './errors.ts';
 
-import type { SessionManager } from './session-manager.ts';
+import type { SessionManager } from './session-manager/base.ts';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 export type McpHandlers = {
