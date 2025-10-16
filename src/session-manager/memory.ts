@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
-import { SessionManager } from './base.ts';
+import { SessionManager, type SessionInfo } from './base.ts';
 
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
@@ -10,8 +10,9 @@ import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
  * Manages MCP sessions with proper lifecycle handling
  */
 export class MemorySessionManager extends SessionManager {
-  private sessions = new Map<string, StreamableHTTPServerTransport>();
   private server: Server;
+  private transports = new Map<string, StreamableHTTPServerTransport>();
+  private sessions = new Map<string, SessionInfo>();
 
   constructor (server: Server) {
     super({ captureRejections: true });
@@ -25,7 +26,8 @@ export class MemorySessionManager extends SessionManager {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (sessionId) => {
-        this.sessions.set(sessionId, transport);
+        this.transports.set(sessionId, transport);
+        this.sessions.set(sessionId, { id: sessionId, createdAt: Date.now() });
         this.emit('sessionCreated', sessionId);
       }
     });
@@ -35,6 +37,7 @@ export class MemorySessionManager extends SessionManager {
     transport.onclose = () => {
       if (transport.sessionId) {
         this.destroySession(transport.sessionId);
+        this.sessions.delete(transport.sessionId);
       }
     };
 
@@ -54,15 +57,19 @@ export class MemorySessionManager extends SessionManager {
   /**
    * Retrieves an existing session by ID
    */
-  public getSession (sessionId: string): StreamableHTTPServerTransport | undefined {
+  public getSession (sessionId: string): SessionInfo | undefined {
     return this.sessions.get(sessionId);
+  }
+
+  public getTransport (sessionId: string): StreamableHTTPServerTransport | undefined {
+    return this.transports.get(sessionId);
   }
 
   /**
    * Destroys a session and cleans up resources
    */
   public destroySession (sessionId: string): boolean {
-    const existed = this.sessions.delete(sessionId);
+    const existed = this.transports.delete(sessionId);
     if (existed) {
       this.emit('sessionDestroyed', sessionId);
     }
@@ -73,14 +80,15 @@ export class MemorySessionManager extends SessionManager {
    * Gets the current number of active sessions
    */
   public getSessionCount (): number {
-    return this.sessions.size;
+    return this.transports.size;
   }
 
   /**
    * Destroys all sessions
    */
   public destroyAllSessions () {
-    const sessionIds = Array.from(this.sessions.keys());
-    sessionIds.forEach((id) => this.destroySession(id));
+    const transports = Array.from(this.transports.keys());
+    transports.forEach((id) => this.destroySession(id));
+    this.sessions.clear();
   }
 }

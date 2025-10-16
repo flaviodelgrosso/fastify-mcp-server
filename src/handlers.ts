@@ -38,7 +38,7 @@ export class PostRequestHandler implements McpRequestHandler {
 
     if (sessionId) {
       // Validate existing session
-      const transport = this.sessionManager.getSession(sessionId);
+      const transport = this.sessionManager.getTransport(sessionId);
       if (!transport) {
         throw new SessionNotFoundError();
       }
@@ -66,7 +66,7 @@ export class GetRequestHandler implements McpRequestHandler {
     // Schema validation ensures mcp-session-id header is present
     const sessionId = request.headers[MCP_SESSION_ID_HEADER] as string;
 
-    const transport = this.sessionManager.getSession(sessionId);
+    const transport = this.sessionManager.getTransport(sessionId);
     if (!transport) {
       throw new SessionNotFoundError();
     }
@@ -89,7 +89,7 @@ export class DeleteRequestHandler implements McpRequestHandler {
     // Schema validation ensures mcp-session-id header is present
     const sessionId = request.headers[MCP_SESSION_ID_HEADER] as string;
 
-    const transport = this.sessionManager.getSession(sessionId);
+    const transport = this.sessionManager.getTransport(sessionId);
     if (!transport) {
       throw new SessionNotFoundError();
     }
