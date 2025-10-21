@@ -1,20 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import { EventEmitter } from 'node:events';
 
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
-import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { SessionManager } from './base.ts';
 
-type SessionsEvents = {
-  sessionCreated: [string];
-  sessionDestroyed: [string];
-  transportError: [string, Error];
-};
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
 /**
  * Manages MCP sessions with proper lifecycle handling
  */
-export class SessionManager extends EventEmitter<SessionsEvents> {
+export class InMemorySessionManager extends SessionManager {
   private sessions = new Map<string, StreamableHTTPServerTransport>();
   private server: Server;
 
@@ -35,7 +30,6 @@ export class SessionManager extends EventEmitter<SessionsEvents> {
       }
     });
 
-    // Handle transport closure | TODO: sdk seems to not handle this case
     /* c8 ignore next 4 */
     transport.onclose = () => {
       if (transport.sessionId) {

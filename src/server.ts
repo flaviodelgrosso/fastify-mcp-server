@@ -1,7 +1,8 @@
 import mcpRoutes from './routes/mcp.ts';
 import wellKnownRoutes from './routes/well-known.ts';
-import { SessionManager } from './session-manager.ts';
+import { InMemorySessionManager } from './session-manager/memory.ts';
 
+import type { SessionManager } from './session-manager/base.ts';
 import type { FastifyMcpServerOptions } from './types.ts';
 import type { FastifyInstance } from 'fastify';
 
@@ -20,7 +21,7 @@ export class FastifyMcpServer {
     this.options = options;
 
     // Initialize session manager
-    this.sessionManager = new SessionManager(options.server);
+    this.sessionManager = new InMemorySessionManager(options.server);
 
     // Register OAuth metadata routes if oauth2 config is provided
     this.fastify.register(wellKnownRoutes, { config: options.authorization?.oauth2 });
@@ -53,7 +54,6 @@ export class FastifyMcpServer {
    * Graceful shutdown - closes all sessions
    */
   public async shutdown (): Promise<void> {
-    this.sessionManager.destroyAllSessions();
     await this.options.server.close();
   }
 
