@@ -1,8 +1,9 @@
 import fp from 'fastify-plugin';
 
+import { PostRequestHandler, GetRequestHandler, DeleteRequestHandler } from './handlers.ts';
+
 import { addBearerPreHandlerHook } from '../bearer.ts';
 import { setMcpErrorHandler } from '../errors.ts';
-import { PostRequestHandler, GetRequestHandler, DeleteRequestHandler } from '../handlers.ts';
 
 import type { SessionManager } from '../session-manager/base.ts';
 import type { AuthorizationOptions } from '../types.ts';
