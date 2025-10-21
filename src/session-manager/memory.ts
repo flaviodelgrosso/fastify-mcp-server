@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
 import { SessionManager } from './base.ts';
@@ -24,6 +25,7 @@ export class InMemorySessionManager extends SessionManager {
   public async createSession (): Promise<StreamableHTTPServerTransport> {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
+      eventStore: new InMemoryEventStore(),
       onsessioninitialized: (sessionId) => {
         this.sessions.set(sessionId, transport);
         this.emit('sessionCreated', sessionId);
