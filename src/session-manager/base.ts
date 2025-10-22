@@ -8,18 +8,27 @@ type SessionsEvents = {
   transportError: [string, Error];
 };
 
+export type SessionInfo = {
+  sessionId: string;
+  createdAt: number;
+};
+
 interface ISessionManager {
-  createSession (): Promise<StreamableHTTPServerTransport>;
-  getSession (sessionId: string): StreamableHTTPServerTransport | undefined;
+  createTransport (): StreamableHTTPServerTransport;
+  attachTransport (sessionId: string): StreamableHTTPServerTransport | Promise<StreamableHTTPServerTransport>;
+  getTransport (sessionId: string): StreamableHTTPServerTransport | undefined;
+  getSession (sessionId: string): SessionInfo | undefined | Promise<SessionInfo | undefined>;
   destroySession (sessionId: string): void;
   destroyAllSessions (): void;
-  getSessionCount (): number;
+  getSessionsCount (): number | Promise<number>;
 }
 
 export abstract class SessionManager extends EventEmitter<SessionsEvents> implements ISessionManager {
-  abstract createSession (): Promise<StreamableHTTPServerTransport>;
-  abstract getSession (sessionId: string): StreamableHTTPServerTransport | undefined;
+  abstract createTransport (): StreamableHTTPServerTransport;
+  abstract attachTransport (sessionId: string): StreamableHTTPServerTransport | Promise<StreamableHTTPServerTransport>;
+  abstract getTransport (sessionId: string): StreamableHTTPServerTransport | undefined;
+  abstract getSession (sessionId: string): SessionInfo | undefined | Promise<SessionInfo | undefined>;
   abstract destroySession (sessionId: string): void;
   abstract destroyAllSessions (): void;
-  abstract getSessionCount (): number;
+  abstract getSessionsCount (): number | Promise<number>;
 }

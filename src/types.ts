@@ -1,6 +1,7 @@
 import type { BearerAuthMiddlewareOptions } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
-import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { OAuthProtectedResourceMetadata, OAuthMetadata } from '@modelcontextprotocol/sdk/shared/auth.js';
+import type { RedisOptions } from 'ioredis';
 
 export type AuthorizationOptions = {
   /**
@@ -25,9 +26,9 @@ export type AuthorizationOptions = {
 
 export type FastifyMcpServerOptions = {
   /**
-   * The MCP server instance to use.
+   * The MCP server factory function.
    */
-  server: Server;
+  createMcpServer: () => McpServer;
   /**
    * The endpoint path for the MCP routes. Defaults to '/mcp'.
    */
@@ -36,4 +37,8 @@ export type FastifyMcpServerOptions = {
    * Authorization options
    */
   authorization?: AuthorizationOptions;
+  /**
+   * Redis configuration options for session storage.
+   */
+  redis?: RedisOptions;
 };

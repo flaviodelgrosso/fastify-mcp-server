@@ -1,7 +1,7 @@
 import fp from 'fastify-plugin';
 
 import FastifyMcpStreamableHttp, { getMcpDecorator } from '../../src/index.ts';
-import { mcp } from '../mcp/server.ts';
+import { createMcpServer } from '../mcp/server.ts';
 
 import type { FastifyMcpServerOptions } from '../../src/types.ts';
 import type { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provider.js';
@@ -12,15 +12,20 @@ class BearerTokenVerifier implements OAuthTokenVerifier {
   verifyAccessToken (token: string): Promise<AuthInfo> {
     // Just a mock implementation for demonstration purposes.
     return new Promise((resolve) => {
-      resolve({ token, clientId: 'example-client', scopes: [] });
+      resolve({ extra: { userId: '1234567890' }, token, clientId: 'example-client', scopes: [] });
     });
   }
 }
 
 const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpServerOptions> = async (app) => {
   await app.register(FastifyMcpStreamableHttp, {
-    server: mcp.server,
+    createMcpServer,
     endpoint: '/mcp', // optional, defaults to '/mcp'
+    redis: {
+      host: 'localhost',
+      port: 6379,
+      db: 0
+    },
     authorization: {
       bearerMiddlewareOptions: {
         verifier: new BearerTokenVerifier()

@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 
 export class InvalidRequestError extends McpError {
   constructor () {
-    super(-32600, 'Invalid request');
+    super(-32600, 'Invalid request method for existing session');
     this.name = 'InvalidRequestError';
   }
 }

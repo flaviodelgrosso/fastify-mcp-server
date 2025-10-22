@@ -1,19 +1,17 @@
 import { randomUUID } from 'node:crypto';
 
-import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { Redis, type RedisOptions } from 'ioredis';
 
 import { SessionManager, type SessionInfo } from './base.ts';
 
-/**
- * Manages MCP sessions with proper lifecycle handling
- */
-export class InMemorySessionManager extends SessionManager {
-  private transports = new Map<string, StreamableHTTPServerTransport>();
-  private sessions: Map<string, SessionInfo> = new Map();
+export class RedisSessionManager extends SessionManager {
+  private redis: Redis;
+  private transports: Map<string, StreamableHTTPServerTransport> = new Map();
 
-  constructor () {
+  constructor (options: RedisOptions) {
     super({ captureRejections: true });
+    this.redis = new Redis(options);
   }
 
   /**
@@ -22,10 +20,8 @@ export class InMemorySessionManager extends SessionManager {
   public createTransport (): StreamableHTTPServerTransport {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
-      eventStore: new InMemoryEventStore(),
-      onsessioninitialized: (sessionId) => {
-        this.transports.set(sessionId, transport);
-        this.storeSession(sessionId);
+      onsessioninitialized: async (sessionId) => {
+        await this.storeSession(sessionId, transport);
         this.emit('sessionCreated', sessionId);
       }
     });
@@ -47,13 +43,12 @@ export class InMemorySessionManager extends SessionManager {
     return transport;
   }
 
-  public attachTransport (sessionId: string): StreamableHTTPServerTransport {
+  public async attachTransport (sessionId: string): Promise<StreamableHTTPServerTransport> {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined
     });
 
-    this.transports.set(sessionId, transport);
-    this.storeSession(sessionId);
+    await this.storeSession(sessionId, transport);
 
     /* c8 ignore next 4 */
     transport.onclose = () => {
@@ -70,8 +65,16 @@ export class InMemorySessionManager extends SessionManager {
     return transport;
   }
 
-  public getSession (sessionId: string): SessionInfo | undefined {
-    return this.sessions.get(sessionId);
+  public async getSession (sessionId: string): Promise<SessionInfo | undefined> {
+    const data = await this.redis.hgetall(`session:${sessionId}`);
+    if (Object.keys(data).length === 0) {
+      return undefined;
+    }
+
+    return {
+      sessionId,
+      createdAt: Number(data.createdAt)
+    };
   }
 
   /**
@@ -84,10 +87,11 @@ export class InMemorySessionManager extends SessionManager {
   /**
    * Destroys a session and cleans up resources
    */
-  public destroySession (sessionId: string): boolean {
-    const existed = this.transports.delete(sessionId);
+  public async destroySession (sessionId: string): Promise<boolean> {
+    const existed = (await this.redis.del(`session:${sessionId}`)) > 0;
     if (existed) {
       this.emit('sessionDestroyed', sessionId);
+      this.transports.delete(sessionId);
     }
     return existed;
   }
@@ -95,23 +99,24 @@ export class InMemorySessionManager extends SessionManager {
   /**
    * Gets the current number of active sessions
    */
-  public getSessionsCount (): number {
-    return this.transports.size;
+  public async getSessionsCount (): Promise<number> {
+    return this.redis.keys('session:*').then((keys) => keys.length);
   }
 
   /**
    * Destroys all sessions
    */
-  public destroyAllSessions () {
-    const sessionIds = Array.from(this.transports.keys());
-    sessionIds.forEach((id) => this.destroySession(id));
+  public async destroyAllSessions () {
+    const keys = await this.redis.keys('session:*');
+    if (keys.length > 0) {
+      await this.redis.del(...keys);
+    }
+    this.transports.clear();
   }
 
-  private storeSession (sessionId: string) {
-    const sessionInfo: SessionInfo = {
-      sessionId,
-      createdAt: Date.now()
-    };
-    this.sessions.set(sessionId, sessionInfo);
+  private async storeSession (sessionId: string, transport: StreamableHTTPServerTransport) {
+    await this.redis.hset(`session:${sessionId}`, 'createdAt', Date.now().toString());
+    await this.redis.expire(`session:${sessionId}`, 3600); // Set TTL to 1 hour
+    this.transports.set(sessionId, transport);
   }
 }

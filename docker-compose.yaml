@@ -1,0 +1,19 @@
+services:
+  cache:
+    image: redis:8.2-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+  insights:
+    image: redis/redisinsight:latest
+    ports:
+      - "5540:5540"
+    restart: unless-stopped
+    depends_on:
+      - cache
+
+volumes:
+  redis-data:

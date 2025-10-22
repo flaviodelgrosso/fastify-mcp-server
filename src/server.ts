@@ -1,6 +1,7 @@
 import mcpRoutes from './routes/mcp.ts';
 import wellKnownRoutes from './routes/well-known.ts';
 import { InMemorySessionManager } from './session-manager/memory.ts';
+import { RedisSessionManager } from './session-manager/redis.ts';
 
 import type { SessionManager } from './session-manager/base.ts';
 import type { FastifyMcpServerOptions } from './types.ts';
@@ -21,15 +22,24 @@ export class FastifyMcpServer {
     this.options = options;
 
     // Initialize session manager
-    this.sessionManager = new InMemorySessionManager(options.server);
+    if (options.redis) {
+      this.sessionManager = new RedisSessionManager(options.redis);
+    } else {
+      this.sessionManager = new InMemorySessionManager();
+    }
 
     // Register OAuth metadata routes if oauth2 config is provided
-    this.fastify.register(wellKnownRoutes, { config: options.authorization?.oauth2 });
+    const oauth2 = options.authorization?.oauth2;
+    if (oauth2) {
+      this.fastify.register(wellKnownRoutes, { oauth2 });
+    }
+
     // Register MCP routes
     this.fastify.register(mcpRoutes, {
       sessionManager: this.sessionManager,
       endpoint: this.endpoint,
-      bearerMiddlewareOptions: options.authorization?.bearerMiddlewareOptions
+      bearerMiddlewareOptions: options.authorization?.bearerMiddlewareOptions,
+      serverFactory: this.options.createMcpServer
     });
   }
 
@@ -38,7 +48,7 @@ export class FastifyMcpServer {
    */
   public getStats () {
     return {
-      activeSessions: this.sessionManager.getSessionCount(),
+      activeSessions: this.sessionManager.getSessionsCount(),
       endpoint: this.endpoint
     };
   }
@@ -48,13 +58,6 @@ export class FastifyMcpServer {
    */
   public getSessionManager (): SessionManager {
     return this.sessionManager;
-  }
-
-  /**
-   * Graceful shutdown - closes all sessions
-   */
-  public async shutdown (): Promise<void> {
-    await this.options.server.close();
   }
 
   private get endpoint (): string {

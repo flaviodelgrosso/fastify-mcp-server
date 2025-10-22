@@ -2,8 +2,6 @@ import closeWithGrace from 'close-with-grace';
 
 import { buildApp } from './app.ts';
 
-import { getMcpDecorator } from '../src/index.ts';
-
 async function startServer () {
   const app = await buildApp({
     disableRequestLogging: true,
@@ -26,7 +24,6 @@ async function startServer () {
       app.log.info(`${signal} received, server closing`);
     }
 
-    await getMcpDecorator(app).shutdown();
     await app.close();
   });
 
