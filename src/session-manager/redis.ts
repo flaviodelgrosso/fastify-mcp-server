@@ -31,7 +31,7 @@ export class RedisSessionManager extends SessionManager {
       }
     });
 
-    this.setupTransportHandlers(transport, '');
+    this.setupTransportHandlers(transport, uuid);
 
     return transport;
   }
