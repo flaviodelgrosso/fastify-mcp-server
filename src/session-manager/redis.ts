@@ -5,12 +5,14 @@ import { Redis, type RedisOptions } from 'ioredis';
 
 import { SessionManager, type SessionInfo } from './base.ts';
 
+/**
+ * Manages MCP sessions using Redis for persistence
+ */
 export class RedisSessionManager extends SessionManager {
   private redis: Redis;
-  private transports: Map<string, StreamableHTTPServerTransport> = new Map();
 
   constructor (options: RedisOptions) {
-    super({ captureRejections: true });
+    super();
     this.redis = new Redis(options);
   }
 
@@ -18,27 +20,18 @@ export class RedisSessionManager extends SessionManager {
    * Creates a new transport and session
    */
   public createTransport (): StreamableHTTPServerTransport {
+    const uuid = randomUUID();
+
     const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
+      sessionIdGenerator: () => uuid,
       onsessioninitialized: async (sessionId) => {
-        await this.storeSession(sessionId, transport);
+        this.storeTransport(sessionId, transport);
+        await this.storeSession(sessionId);
         this.emit('sessionCreated', sessionId);
       }
     });
 
-    /* c8 ignore next 4 */
-    transport.onclose = () => {
-      if (transport.sessionId) {
-        this.destroySession(transport.sessionId);
-      }
-    };
-
-    /* c8 ignore next 4 */
-    transport.onerror = (error) => {
-      if (transport.sessionId) {
-        this.emit('transportError', transport.sessionId, error);
-      }
-    };
+    this.setupTransportHandlers(transport, '');
 
     return transport;
   }
@@ -48,20 +41,12 @@ export class RedisSessionManager extends SessionManager {
       sessionIdGenerator: undefined
     });
 
-    await this.storeSession(sessionId, transport);
+    this.storeTransport(sessionId, transport);
+    await this.storeSession(sessionId);
 
-    /* c8 ignore next 4 */
-    transport.onclose = () => {
-      if (transport.sessionId) {
-        this.destroySession(transport.sessionId);
-      }
-    };
+    this.setupTransportHandlers(transport, sessionId);
 
-    /* c8 ignore next 3 */
-    transport.onerror = (error) => {
-      this.emit('transportError', sessionId, error);
-    };
-
+    transport.sessionId = sessionId;
     return transport;
   }
 
@@ -78,22 +63,15 @@ export class RedisSessionManager extends SessionManager {
   }
 
   /**
-   * Retrieves an existing session by ID
-   */
-  public getTransport (sessionId: string): StreamableHTTPServerTransport | undefined {
-    return this.transports.get(sessionId);
-  }
-
-  /**
    * Destroys a session and cleans up resources
    */
-  public async destroySession (sessionId: string): Promise<boolean> {
-    const existed = (await this.redis.del(`session:${sessionId}`)) > 0;
-    if (existed) {
+  public async destroySession (sessionId: string): Promise<void> {
+    const deleted = await this.redis.del(`session:${sessionId}`);
+    const hasTransport = this.removeTransport(sessionId);
+
+    if (deleted > 0 || hasTransport) {
       this.emit('sessionDestroyed', sessionId);
-      this.transports.delete(sessionId);
     }
-    return existed;
   }
 
   /**
@@ -106,7 +84,7 @@ export class RedisSessionManager extends SessionManager {
   /**
    * Destroys all sessions
    */
-  public async destroyAllSessions () {
+  public async destroyAllSessions (): Promise<void> {
     const keys = await this.redis.keys('session:*');
     if (keys.length > 0) {
       await this.redis.del(...keys);
@@ -114,9 +92,8 @@ export class RedisSessionManager extends SessionManager {
     this.transports.clear();
   }
 
-  private async storeSession (sessionId: string, transport: StreamableHTTPServerTransport) {
-    await this.redis.hset(`session:${sessionId}`, 'createdAt', Date.now().toString());
-    await this.redis.expire(`session:${sessionId}`, 3600); // Set TTL to 1 hour
-    this.transports.set(sessionId, transport);
+  private async storeSession (sessionId: string): Promise<void> {
+    await this.redis.hset(`session:${sessionId}`, 'createdAt', Date.now());
+    await this.redis.expire(`session:${sessionId}`, '3600');
   }
 }

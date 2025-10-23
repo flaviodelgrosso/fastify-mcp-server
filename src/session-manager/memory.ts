@@ -6,67 +6,44 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { SessionManager, type SessionInfo } from './base.ts';
 
 /**
- * Manages MCP sessions with proper lifecycle handling
+ * Manages MCP sessions in memory with proper lifecycle handling
  */
 export class InMemorySessionManager extends SessionManager {
-  private transports = new Map<string, StreamableHTTPServerTransport>();
   private sessions: Map<string, SessionInfo> = new Map();
-
-  constructor () {
-    super({ captureRejections: true });
-  }
 
   /**
    * Creates a new transport and session
    */
   public createTransport (): StreamableHTTPServerTransport {
+    const uuid = randomUUID();
+
     const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
+      sessionIdGenerator: () => uuid,
       eventStore: new InMemoryEventStore(),
       onsessioninitialized: (sessionId) => {
-        this.transports.set(sessionId, transport);
+        this.storeTransport(sessionId, transport);
         this.storeSession(sessionId);
         this.emit('sessionCreated', sessionId);
       }
     });
 
-    /* c8 ignore next 4 */
-    transport.onclose = () => {
-      if (transport.sessionId) {
-        this.destroySession(transport.sessionId);
-      }
-    };
-
-    /* c8 ignore next 4 */
-    transport.onerror = (error) => {
-      if (transport.sessionId) {
-        this.emit('transportError', transport.sessionId, error);
-      }
-    };
+    this.setupTransportHandlers(transport, uuid);
 
     return transport;
   }
 
   public attachTransport (sessionId: string): StreamableHTTPServerTransport {
     const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined
+      sessionIdGenerator: undefined,
+      eventStore: new InMemoryEventStore()
     });
 
-    this.transports.set(sessionId, transport);
+    this.storeTransport(sessionId, transport);
     this.storeSession(sessionId);
 
-    /* c8 ignore next 4 */
-    transport.onclose = () => {
-      if (transport.sessionId) {
-        this.destroySession(transport.sessionId);
-      }
-    };
+    this.setupTransportHandlers(transport, sessionId);
 
-    /* c8 ignore next 3 */
-    transport.onerror = (error) => {
-      this.emit('transportError', sessionId, error);
-    };
-
+    transport.sessionId = sessionId;
     return transport;
   }
 
@@ -75,21 +52,15 @@ export class InMemorySessionManager extends SessionManager {
   }
 
   /**
-   * Retrieves an existing session by ID
-   */
-  public getTransport (sessionId: string): StreamableHTTPServerTransport | undefined {
-    return this.transports.get(sessionId);
-  }
-
-  /**
    * Destroys a session and cleans up resources
    */
-  public destroySession (sessionId: string): boolean {
-    const existed = this.transports.delete(sessionId);
-    if (existed) {
+  public destroySession (sessionId: string): void {
+    const hasTransport = this.removeTransport(sessionId);
+    const hasSession = this.sessions.delete(sessionId);
+
+    if (hasTransport || hasSession) {
       this.emit('sessionDestroyed', sessionId);
     }
-    return existed;
   }
 
   /**
@@ -102,12 +73,12 @@ export class InMemorySessionManager extends SessionManager {
   /**
    * Destroys all sessions
    */
-  public destroyAllSessions () {
-    const sessionIds = Array.from(this.transports.keys());
+  public destroyAllSessions (): void {
+    const sessionIds = Array.from(this.sessions.keys());
     sessionIds.forEach((id) => this.destroySession(id));
   }
 
-  private storeSession (sessionId: string) {
+  private storeSession (sessionId: string): void {
     const sessionInfo: SessionInfo = {
       sessionId,
       createdAt: Date.now()

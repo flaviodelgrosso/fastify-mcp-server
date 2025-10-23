@@ -57,7 +57,6 @@ async function mcpRoutesPlugin (fastify: FastifyInstance, options: McpRoutesOpti
         transport = sessionManager.getTransport(sessionId);
         if (!transport) {
           transport = await sessionManager.attachTransport(sessionId);
-          transport.sessionId = sessionId;
           await connectMcpServer(transport);
         }
       } else {
