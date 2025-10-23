@@ -38,9 +38,12 @@ export class FastifyMcpServer {
     this.fastify.register(mcpRoutes, {
       sessionManager: this.sessionManager,
       endpoint: this.endpoint,
-      bearerMiddlewareOptions: options.authorization?.bearerMiddlewareOptions,
-      serverFactory: this.options.createMcpServer
+      bearerMiddlewareOptions: options.authorization?.bearerMiddlewareOptions
     });
+  }
+
+  public create () {
+    return this.options.createMcpServer();
   }
 
   /**

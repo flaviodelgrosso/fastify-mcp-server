@@ -5,15 +5,6 @@ import { FastifyMcpServer } from './server.ts';
 import type { FastifyMcpServerOptions } from './types.ts';
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    /**
-     * Decorator for accessing the MCP server instance.
-     */
-    mcp: FastifyMcpServer;
-  }
-}
-
 const kFastifyMcp = Symbol('fastifyMcp');
 
 /**

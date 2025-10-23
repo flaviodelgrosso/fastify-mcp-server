@@ -4,23 +4,22 @@ import fp from 'fastify-plugin';
 
 import { addBearerPreHandlerHook } from '../bearer.ts';
 import { InvalidRequestError, SessionNotFoundError, setMcpErrorHandler } from '../errors.ts';
+import { getMcpDecorator } from '../index.ts';
 
 import type { SessionManager } from '../session-manager/base.ts';
 import type { AuthorizationOptions } from '../types.ts';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { FastifyInstance } from 'fastify';
 
 type McpRoutesOptions = {
   endpoint: string;
   sessionManager: SessionManager;
   bearerMiddlewareOptions: AuthorizationOptions['bearerMiddlewareOptions'];
-  serverFactory: () => McpServer;
 };
 
 const MCP_SESSION_ID_HEADER = 'mcp-session-id';
 
 async function mcpRoutesPlugin (fastify: FastifyInstance, options: McpRoutesOptions) {
-  const { bearerMiddlewareOptions, serverFactory, endpoint, sessionManager } = options;
+  const { bearerMiddlewareOptions, endpoint, sessionManager } = options;
 
   fastify.register((app) => {
     if (bearerMiddlewareOptions) {
@@ -28,11 +27,6 @@ async function mcpRoutesPlugin (fastify: FastifyInstance, options: McpRoutesOpti
     }
 
     setMcpErrorHandler(app);
-
-    const connectMcpServer = (transport: StreamableHTTPServerTransport) => {
-      const server = serverFactory();
-      return server.connect(transport);
-    };
 
     app.addHook('preHandler', async (request) => {
       const sessionId = request.headers[MCP_SESSION_ID_HEADER] as string | undefined;
@@ -48,6 +42,8 @@ async function mcpRoutesPlugin (fastify: FastifyInstance, options: McpRoutesOpti
       }
     });
 
+    const mcp = getMcpDecorator(app);
+
     app.all(endpoint, async (request, reply) => {
       const sessionId = request.headers[MCP_SESSION_ID_HEADER] as string | undefined;
 
@@ -57,12 +53,14 @@ async function mcpRoutesPlugin (fastify: FastifyInstance, options: McpRoutesOpti
         transport = sessionManager.getTransport(sessionId);
         if (!transport) {
           transport = await sessionManager.attachTransport(sessionId);
-          await connectMcpServer(transport);
+          const mcpServer = mcp.create();
+          await mcpServer.connect(transport);
         }
       } else {
         // Create a new session and connect a server for initialize requests
         transport = sessionManager.createTransport();
-        await connectMcpServer(transport);
+        const mcpServer = mcp.create();
+        await mcpServer.connect(transport);
       }
 
       // Handle the incoming HTTP request via the transport
