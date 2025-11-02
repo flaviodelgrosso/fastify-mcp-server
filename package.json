@@ -30,6 +30,7 @@
   },
   "scripts": {
     "dev": "node --watch demo/server.ts",
+    "dev:redis": "node --watch demo/server.ts -- --redis",
     "build": "rimraf dist && tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
     "prepare": "husky",
