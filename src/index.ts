@@ -28,3 +28,5 @@ export default fp(FastifyMcp, {
   name: 'fastify-mcp-server',
   fastify: '5.x'
 });
+
+export type { FastifyMcpServerOptions };
