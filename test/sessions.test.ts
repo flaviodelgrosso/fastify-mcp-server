@@ -33,7 +33,7 @@ describe('Sessions', async () => {
     strictEqual(response.statusCode, 400);
     deepStrictEqual(response.json(), {
       jsonrpc: '2.0',
-      error: { code: -32600, message: 'MCP error -32600: Invalid request' },
+      error: { code: -32600, message: 'MCP error -32600: Invalid request method for existing session' },
       id: null
     });
   });
@@ -150,7 +150,7 @@ describe('Sessions', async () => {
     strictEqual(response.statusCode, 400);
     deepStrictEqual(response.json(), {
       jsonrpc: '2.0',
-      error: { code: -32001, message: 'MCP error -32001: Invalid session header' },
+      error: { code: -32600, message: 'MCP error -32600: Invalid request method for existing session' },
       id: null
     });
   });
