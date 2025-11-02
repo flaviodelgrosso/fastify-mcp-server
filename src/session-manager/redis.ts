@@ -42,8 +42,6 @@ export class RedisSessionManager extends SessionManager {
     });
 
     this.storeTransport(sessionId, transport);
-    await this.storeSession(sessionId);
-
     this.setupTransportHandlers(transport, sessionId);
 
     transport.sessionId = sessionId;

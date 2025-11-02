@@ -39,8 +39,6 @@ export class InMemorySessionManager extends SessionManager {
     });
 
     this.storeTransport(sessionId, transport);
-    this.storeSession(sessionId);
-
     this.setupTransportHandlers(transport, sessionId);
 
     transport.sessionId = sessionId;
