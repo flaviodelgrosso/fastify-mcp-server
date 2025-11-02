@@ -17,15 +17,20 @@ class BearerTokenVerifier implements OAuthTokenVerifier {
   }
 }
 
+const withRedis = process.argv.includes('--redis');
+const redis = withRedis
+  ? {
+      host: 'localhost',
+      port: 6379,
+      db: 0
+    }
+  : undefined;
+
 const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpServerOptions> = async (app) => {
   await app.register(FastifyMcpStreamableHttp, {
     createMcpServer,
     endpoint: '/mcp', // optional, defaults to '/mcp'
-    redis: {
-      host: 'localhost',
-      port: 6379,
-      db: 0
-    },
+    redis,
     authorization: {
       bearerMiddlewareOptions: {
         verifier: new BearerTokenVerifier()
