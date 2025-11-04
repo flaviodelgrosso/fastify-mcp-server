@@ -58,8 +58,7 @@ export abstract class SessionManager extends EventEmitter<SessionsEvents> implem
 
     /* c8 ignore next 3 */
     transport.onerror = (error) => {
-      const id = transport.sessionId || sessionId;
-      this.emit('transportError', id, error);
+      this.emit('transportError', sessionId, error);
     };
   }
 

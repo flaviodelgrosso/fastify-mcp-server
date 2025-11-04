@@ -72,7 +72,7 @@ export class InMemorySessionManager extends SessionManager {
    * Destroys all sessions
    */
   public destroyAllSessions (): void {
-    const sessionIds = Array.from(this.sessions.keys());
+    const sessionIds = Array.from(this.transports.keys());
     sessionIds.forEach((id) => this.destroySession(id));
   }
 
