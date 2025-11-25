@@ -117,7 +117,7 @@ import FastifyMcpServer, { getMcpDecorator } from 'fastify-mcp-server';
 const app = Fastify({ logger: true });
 
 // Create MCP server factory function
-function createMcpServer() {
+function createMcpServer () {
   const mcp = new McpServer({
     name: 'my-mcp-server',
     version: '1.0.0'
@@ -304,7 +304,7 @@ await app.register(FastifyMcpServer, {
   redis: {
     host: 'localhost',
     port: 6379,
-    db: 0,
+    db: 0
     // Additional ioredis options...
   }
 });
@@ -313,6 +313,7 @@ await app.register(FastifyMcpServer, {
 ### How It Works
 
 When Redis is configured:
+
 - **Session Creation**: New sessions are stored in Redis with their metadata
 - **Session Retrieval**: Session data is fetched from Redis for each request
 - **Session Cleanup**: Sessions are automatically removed from Redis when destroyed
@@ -320,12 +321,12 @@ When Redis is configured:
 
 ### Redis vs In-Memory
 
-| Feature | In-Memory | Redis |
-|---------|-----------|-------|
-| **Persistence** | Lost on restart | Persists across restarts |
-| **Scalability** | Single instance | Multiple instances |
-| **Performance** | Fastest | Slightly slower (network) |
-| **Use Case** | Development, single instance | Production, distributed systems |
+| Feature         | In-Memory                    | Redis                           |
+| --------------- | ---------------------------- | ------------------------------- |
+| **Persistence** | Lost on restart              | Persists across restarts        |
+| **Scalability** | Single instance              | Multiple instances              |
+| **Performance** | Fastest                      | Slightly slower (network)       |
+| **Use Case**    | Development, single instance | Production, distributed systems |
 
 ### Docker Compose Example
 
@@ -440,7 +441,7 @@ To enable these endpoints, provide the `authorization.oauth2.authorizationServer
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import FastifyMcpServer from 'fastify-mcp-server';
 
-function createMcpServer() {
+function createMcpServer () {
   return new McpServer({
     name: 'my-mcp-server',
     version: '1.0.0'
