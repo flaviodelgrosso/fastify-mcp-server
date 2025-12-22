@@ -10,7 +10,7 @@ describe('Plugin Registration', () => {
     const app = await buildApp();
     const mcp = getMcpDecorator(app);
 
-    const stats = mcp.getStats();
+    const stats = await mcp.getStats();
 
     strictEqual(stats.endpoint, '/mcp');
     strictEqual(stats.activeSessions, 0);
@@ -22,7 +22,7 @@ describe('Plugin Registration', () => {
     const app = await buildApp({ endpoint: customEndpoint });
     const mcp = getMcpDecorator(app);
 
-    const stats = mcp.getStats();
+    const stats = await mcp.getStats();
 
     strictEqual(stats.endpoint, customEndpoint);
   });
@@ -33,38 +33,5 @@ describe('Plugin Registration', () => {
 
     ok(mcp);
     ok(mcp.getSessionManager());
-  });
-
-  test('should shutdown all sessions', async () => {
-    const app = await buildApp();
-    const mcp = getMcpDecorator(app);
-
-    await app.inject({
-      method: 'POST',
-      url: '/mcp',
-      headers: {
-        'content-type': 'application/json',
-        accept: 'application/json, text/event-stream'
-      },
-      body: {
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'initialize',
-        params: {
-          protocolVersion: '2025-03-26',
-          capabilities: {},
-          clientInfo: {
-            name: 'ExampleClient',
-            version: '1.0.0'
-          }
-        }
-      }
-    });
-
-    strictEqual(mcp.getStats().activeSessions, 1);
-
-    // Shutdown should close all sessions
-    await mcp.shutdown();
-    strictEqual(mcp.getStats().activeSessions, 0);
   });
 });

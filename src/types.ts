@@ -1,6 +1,50 @@
 import type { BearerAuthMiddlewareOptions } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
-import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { OAuthProtectedResourceMetadata, OAuthMetadata } from '@modelcontextprotocol/sdk/shared/auth.js';
+
+/**
+ * Session data stored by the SessionStore
+ */
+export type SessionData = {
+  sessionId: string;
+  createdAt: number;
+};
+
+/**
+ * Interface for session storage implementations
+ * Users can implement this interface to provide their own session storage backend
+ */
+export interface SessionStore {
+  /**
+   * Load a session by ID
+   * @param sessionId - The session ID to load
+   * @returns The session data or undefined if not found
+   */
+  load (sessionId: string): Promise<SessionData | undefined> | SessionData | undefined;
+
+  /**
+   * Save a session
+   * @param sessionData - The session data to save
+   */
+  save (sessionData: SessionData): Promise<void> | void;
+
+  /**
+   * Delete a session by ID
+   * @param sessionId - The session ID to delete
+   */
+  delete (sessionId: string): Promise<void> | void;
+
+  /**
+   * Get all session IDs
+   * @returns Array of all session IDs
+   */
+  getAllSessionIds (): Promise<string[]> | string[];
+
+  /**
+   * Delete all sessions
+   */
+  deleteAll (): Promise<void> | void;
+}
 
 export type AuthorizationOptions = {
   /**
@@ -25,9 +69,9 @@ export type AuthorizationOptions = {
 
 export type FastifyMcpServerOptions = {
   /**
-   * The MCP server instance to use.
+   * The MCP server factory function.
    */
-  server: Server;
+  createMcpServer: () => McpServer;
   /**
    * The endpoint path for the MCP routes. Defaults to '/mcp'.
    */
@@ -36,4 +80,9 @@ export type FastifyMcpServerOptions = {
    * Authorization options
    */
   authorization?: AuthorizationOptions;
+  /**
+   * Session store implementation for managing session persistence
+   * If not provided, an in-memory session store will be used
+   */
+  sessionStore?: SessionStore;
 };

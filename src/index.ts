@@ -5,15 +5,6 @@ import { FastifyMcpServer } from './server.ts';
 import type { FastifyMcpServerOptions } from './types.ts';
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    /**
-     * Decorator for accessing the MCP server instance.
-     */
-    mcp: FastifyMcpServer;
-  }
-}
-
 const kFastifyMcp = Symbol('fastifyMcp');
 
 /**
@@ -37,3 +28,11 @@ export default fp(FastifyMcp, {
   name: 'fastify-mcp-server',
   fastify: '5.x'
 });
+
+// Export types
+export type { FastifyMcpServerOptions, SessionStore, SessionData } from './types.ts';
+
+// Export session store implementations
+export { InMemorySessionStore } from './session-manager/memory.ts';
+export { RedisSessionStore } from './session-manager/redis.ts';
+export { SessionManager } from './session-manager/base.ts';

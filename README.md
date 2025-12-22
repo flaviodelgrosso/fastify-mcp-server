@@ -31,9 +31,17 @@ A robust Fastify plugin that provides seamless integration with the Model Contex
     - [Custom Error Handling](#custom-error-handling)
     - [Health Monitoring](#health-monitoring)
     - [Graceful Shutdown](#graceful-shutdown)
+  - [Session Storage](#session-storage)
+    - [Built-in Session Stores](#built-in-session-stores)
+      - [In-Memory Session Store (Default)](#in-memory-session-store-default)
+      - [Redis Session Store](#redis-session-store)
+    - [Custom Session Store](#custom-session-store)
+    - [How It Works](#how-it-works)
+    - [Comparison](#comparison)
+    - [Docker Compose Example](#docker-compose-example)
   - [Authentication: Bearer Token Support](#authentication-bearer-token-support)
     - [Enabling Bearer Token Authentication](#enabling-bearer-token-authentication)
-    - [How It Works](#how-it-works)
+    - [How It Works](#how-it-works-1)
       - [Example Tool with authentication information](#example-tool-with-authentication-information)
       - [Example Error Response](#example-error-response)
       - [Example using PAT in Visual Studio Code](#example-using-pat-in-visual-studio-code)
@@ -65,6 +73,7 @@ The Model Context Protocol (MCP) is an open standard that enables AI assistants 
 - ✅ **MCP Server Integration**: Seamless integration with `@modelcontextprotocol/sdk`
 - ✅ **Streamable HTTP Transport**: Full support for MCP's streamable HTTP protocol
 - ✅ **Session Management**: Automatic session creation, tracking, and cleanup
+- ✅ **Session Storage**: Support for in-memory and custom session stores (Redis included)
 - ✅ **Request Routing**: Intelligent routing for different MCP request types
 - ✅ **Authentication**: Optional Bearer token support for secure access
 - ✅ **Error Handling**: Comprehensive error handling with proper MCP error responses
@@ -75,6 +84,7 @@ The Model Context Protocol (MCP) is an open standard that enables AI assistants 
 - ✅ **Session Statistics**: Real-time monitoring of active sessions
 - ✅ **Graceful Shutdown**: Proper cleanup of all sessions during server shutdown
 - ✅ **Configurable Endpoints**: Customizable MCP endpoint paths
+- ✅ **Custom Session Stores**: Implement your own session storage backend
 - ✅ **TypeScript Support**: Full type safety and IntelliSense support
 
 ## Installation
@@ -85,10 +95,16 @@ npm install fastify-mcp-server @modelcontextprotocol/sdk
 
 ## Quick Demo
 
-To quickly see the plugin in action, you can run the following example:
+To quickly see the plugin in action, you can run the demo server:
 
 ```bash
+# Run with in-memory session storage
 npm run dev
+
+# Run with Redis session storage
+npm run dev:redis
+
+# Start MCP inspector to interact with the server
 npm run inspector
 ```
 
@@ -103,20 +119,24 @@ import FastifyMcpServer, { getMcpDecorator } from 'fastify-mcp-server';
 
 const app = Fastify({ logger: true });
 
-// Create MCP server instance
-const mcp = new McpServer({
-  name: 'my-mcp-server',
-  version: '1.0.0'
-});
+// Create MCP server factory function
+function createMcpServer () {
+  const mcp = new McpServer({
+    name: 'my-mcp-server',
+    version: '1.0.0'
+  });
 
-// Define MCP tools
-mcp.tool('hello-world', () => ({
-  content: [{ type: 'text', text: 'Hello from MCP!' }]
-}));
+  // Define MCP tools
+  mcp.tool('hello-world', () => ({
+    content: [{ type: 'text', text: 'Hello from MCP!' }]
+  }));
+
+  return mcp;
+}
 
 // Register the plugin
 await app.register(FastifyMcpServer, {
-  server: mcp.server,
+  createMcpServer,
   endpoint: '/mcp' // optional, defaults to '/mcp'
 });
 
@@ -133,7 +153,7 @@ await app.listen({ host: '127.0.0.1', port: 3000 });
 
 ```typescript
 type FastifyMcpServerOptions = {
-  server: Server; // MCP Server instance from @modelcontextprotocol/sdk
+  createMcpServer: () => McpServer; // MCP Server factory function
   endpoint?: string; // Custom endpoint path (default: '/mcp')
   authorization?: {
     // Authorization configuration
@@ -148,6 +168,7 @@ type FastifyMcpServerOptions = {
       protectedResourceOAuthMetadata: OAuthProtectedResourceMetadata; // OAuth metadata for protected resource
     };
   };
+  sessionStore?: SessionStore; // Optional custom session store implementation
 };
 ```
 
@@ -156,7 +177,7 @@ type FastifyMcpServerOptions = {
 The plugin decorates your Fastify instance with an MCP server that provides several useful methods:
 
 ```typescript
-const mcpServer = getMCPDecorator(app);
+const mcpServer = getMcpDecorator(app);
 
 // Get session statistics
 const stats = mcpServer.getStats();
@@ -165,8 +186,8 @@ console.log(`Active sessions: ${stats.activeSessions}`);
 // Access session manager for event handling
 const sessionManager = mcpServer.getSessionManager();
 
-// Graceful shutdown
-await mcpServer.shutdown();
+// Create a new MCP server instance (useful for per-session customization)
+const newMcpInstance = mcpServer.create();
 ```
 
 ### Session Events
@@ -264,10 +285,110 @@ closeWithGrace({ delay: 500 }, async ({ signal, err }) => {
     app.log.info(`${signal} received, server closing`);
   }
 
-  // Shutdown MCP sessions before closing Fastify
-  await mcpServer.shutdown();
+  // Fastify close will handle MCP session cleanup automatically
   await app.close();
 });
+```
+
+## Session Storage
+
+The plugin provides a flexible session storage system that allows you to choose or implement your own storage backend. By default, sessions are stored in memory, but you can use Redis or create your own custom implementation.
+
+### Built-in Session Stores
+
+#### In-Memory Session Store (Default)
+
+```typescript
+import { InMemorySessionStore } from 'fastify-mcp-server';
+
+await app.register(FastifyMcpServer, {
+  createMcpServer
+  // sessionStore option is optional - InMemorySessionStore is used by default
+});
+```
+
+#### Redis Session Store
+
+For production deployments or distributed systems, use the Redis session store:
+
+```typescript
+import { RedisSessionStore } from 'fastify-mcp-server';
+
+const redisStore = new RedisSessionStore({
+  host: 'localhost',
+  port: 6379,
+  db: 0
+  // Additional ioredis options...
+});
+
+await app.register(FastifyMcpServer, {
+  createMcpServer,
+  sessionStore: redisStore
+});
+```
+
+### Custom Session Store
+
+You can implement your own session store by implementing the `SessionStore` interface:
+
+```typescript
+import type { SessionStore, SessionData } from 'fastify-mcp-server';
+
+class MyCustomSessionStore implements SessionStore {
+  async load (sessionId: string): Promise<SessionData | undefined> {
+    // Load session from your storage backend
+  }
+
+  async save (sessionData: SessionData): Promise<void> {
+    // Save session to your storage backend
+  }
+
+  async delete (sessionId: string): Promise<void> {
+    // Delete session from your storage backend
+  }
+
+  async getAllSessionIds (): Promise<string[]> {
+    // Return all session IDs
+  }
+
+  async deleteAll (): Promise<void> {
+    // Delete all sessions
+  }
+}
+
+// Use your custom store
+await app.register(FastifyMcpServer, {
+  createMcpServer,
+  sessionStore: new MyCustomSessionStore()
+});
+```
+
+### How It Works
+
+The session store is responsible for persisting session metadata (session ID and creation time). The plugin manages transports and MCP server connections in memory for performance, while session metadata can be stored in your chosen backend.
+
+- **Session Creation**: When a client initializes, session metadata is saved to the store
+- **Session Retrieval**: Session data is loaded from the store to validate existing sessions
+- **Session Cleanup**: Sessions are removed from the store when destroyed
+- **Transport Management**: Active transports are maintained in memory for fast access
+
+### Comparison
+
+| Feature         | In-Memory                    | Redis                           | Custom                       |
+| --------------- | ---------------------------- | ------------------------------- | ---------------------------- |
+| **Persistence** | Lost on restart              | Persists across restarts        | Depends on implementation    |
+| **Scalability** | Single instance              | Multiple instances              | Depends on implementation    |
+| **Performance** | Fastest                      | Slightly slower (network)       | Depends on implementation    |
+| **Use Case**    | Development, single instance | Production, distributed systems | Specialized requirements     |
+| **Setup**       | No configuration needed      | Requires Redis server           | Custom implementation needed |
+
+### Docker Compose Example
+
+A `docker-compose.yaml` is provided for local development with Redis:
+
+```bash
+docker compose up -d
+npm run dev:redis
 ```
 
 ## Authentication: Bearer Token Support
@@ -284,12 +405,12 @@ import type { BearerAuthMiddlewareOptions } from '@modelcontextprotocol/sdk/serv
 
 ```typescript
 await app.register(FastifyMcpServer, {
-  server: mcp.server,
+  createMcpServer,
   authorization: {
     bearerMiddlewareOptions: {
       verifier: myVerifier, // implements verifyAccessToken(token)
       requiredScopes: ['mcp:read', 'mcp:write'], // optional
-      resourceMetadataUrl: 'https://example.com/.well-known/oauth-resource' // optional,
+      resourceMetadataUrl: 'https://example.com/.well-known/oauth-resource' // optional
     }
   }
 });
@@ -374,10 +495,12 @@ To enable these endpoints, provide the `authorization.oauth2.authorizationServer
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import FastifyMcpServer from 'fastify-mcp-server';
 
-const mcp = new McpServer({
-  name: 'my-mcp-server',
-  version: '1.0.0'
-});
+function createMcpServer () {
+  return new McpServer({
+    name: 'my-mcp-server',
+    version: '1.0.0'
+  });
+}
 
 const authorizationServerMetadata = {
   issuer: 'https://your-domain.com',
@@ -392,7 +515,7 @@ const protectedResourceMetadata = {
 };
 
 await app.register(FastifyMcpServer, {
-  server: mcp.server,
+  createMcpServer,
   authorization: {
     oauth2: {
       authorizationServerOAuthMetadata: authorizationServerMetadata, // Registers /.well-known/oauth-authorization-server
@@ -427,11 +550,12 @@ npm run dev
 
 ### Scripts
 
-- `npm run dev` - Run development server with hot reload
+- `npm run dev` - Run development server with in-memory session storage
+- `npm run dev:redis` - Run development server with Redis session storage
 - `npm run build` - Build TypeScript to JavaScript
 - `npm test` - Run test suite with 100% coverage
 - `npm run test:lcov` - Generate LCOV coverage report
-- `npm run release` - Create a new release
+- `npm run inspector` - Launch MCP inspector for testing
 
 ### Testing
 

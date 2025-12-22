@@ -1,8 +1,8 @@
 import mcpRoutes from './routes/mcp.ts';
 import wellKnownRoutes from './routes/well-known.ts';
-import { InMemorySessionManager } from './session-manager/memory.ts';
+import { SessionManager } from './session-manager/base.ts';
+import { InMemorySessionStore } from './session-manager/memory.ts';
 
-import type { SessionManager } from './session-manager/base.ts';
 import type { FastifyMcpServerOptions } from './types.ts';
 import type { FastifyInstance } from 'fastify';
 
@@ -20,11 +20,16 @@ export class FastifyMcpServer {
     this.fastify = app;
     this.options = options;
 
-    // Initialize session manager
-    this.sessionManager = new InMemorySessionManager(options.server);
+    // Initialize session manager with provided or default session store
+    const sessionStore = options.sessionStore || new InMemorySessionStore();
+    this.sessionManager = new SessionManager(sessionStore);
 
     // Register OAuth metadata routes if oauth2 config is provided
-    this.fastify.register(wellKnownRoutes, { config: options.authorization?.oauth2 });
+    const oauth2 = options.authorization?.oauth2;
+    if (oauth2) {
+      this.fastify.register(wellKnownRoutes, { oauth2 });
+    }
+
     // Register MCP routes
     this.fastify.register(mcpRoutes, {
       sessionManager: this.sessionManager,
@@ -33,12 +38,16 @@ export class FastifyMcpServer {
     });
   }
 
+  public create () {
+    return this.options.createMcpServer();
+  }
+
   /**
    * Gets current session statistics
    */
-  public getStats () {
+  public async getStats () {
     return {
-      activeSessions: this.sessionManager.getSessionCount(),
+      activeSessions: await this.sessionManager.getSessionsCount(),
       endpoint: this.endpoint
     };
   }
@@ -48,13 +57,6 @@ export class FastifyMcpServer {
    */
   public getSessionManager (): SessionManager {
     return this.sessionManager;
-  }
-
-  /**
-   * Graceful shutdown - closes all sessions
-   */
-  public async shutdown (): Promise<void> {
-    await this.options.server.close();
   }
 
   private get endpoint (): string {

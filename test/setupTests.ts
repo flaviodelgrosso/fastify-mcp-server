@@ -6,13 +6,12 @@ import FastifyMcpServer, { type FastifyMcpServerOptions } from '../src/index.ts'
 export async function buildApp (options?: Partial<FastifyMcpServerOptions>) {
   const app = Fastify();
 
-  const mcp = new McpServer({
-    name: 'test',
-    version: '0.1.0'
-  });
-
   await app.register(FastifyMcpServer, {
-    server: mcp.server,
+    createMcpServer: () =>
+      new McpServer({
+        name: 'test',
+        version: '0.1.0'
+      }),
     ...options
   });
 

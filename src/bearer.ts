@@ -9,6 +9,12 @@ import type { BearerAuthMiddlewareOptions } from '@modelcontextprotocol/sdk/serv
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 
+declare module 'fastify' {
+  interface FastifyRequest {
+    auth: AuthInfo;
+  }
+}
+
 /**
  * Middleware that requires a valid Bearer token in the Authorization header.
  * This will validate the token with the auth provider and add the resulting auth info to the request object.
@@ -21,6 +27,7 @@ export function addBearerPreHandlerHook (app: FastifyInstance, options: BearerAu
     try {
       const authInfo = await getAuthInfo(req, verifier, requiredScopes);
       Object.assign(req.raw, { auth: authInfo }); // Ensure raw request also has auth info
+      req.auth = authInfo;
     } catch (error) {
       sendAuthError(error, reply, resourceMetadataUrl);
     }

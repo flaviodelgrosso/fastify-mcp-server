@@ -5,16 +5,8 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { AuthorizationOptions } from '../types.ts';
 import type { FastifyInstance } from 'fastify';
 
-type WellKnownRoutesOptions = {
-  config: AuthorizationOptions['oauth2'];
-};
-
-async function wellKnownRoutesPlugin (app: FastifyInstance, options: WellKnownRoutesOptions) {
-  if (!options.config) {
-    return;
-  }
-
-  const { authorizationServerOAuthMetadata, protectedResourceOAuthMetadata } = options.config;
+async function wellKnownRoutesPlugin (app: FastifyInstance, options: Pick<Required<AuthorizationOptions>, 'oauth2'>) {
+  const { authorizationServerOAuthMetadata, protectedResourceOAuthMetadata } = options.oauth2;
 
   app.route({
     method: 'GET',
