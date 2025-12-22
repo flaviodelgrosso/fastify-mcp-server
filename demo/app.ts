@@ -13,28 +13,32 @@ export async function buildApp (options?: FastifyServerOptions) {
   });
 
   // Set error handler
-  server.setErrorHandler((err, request, reply) => {
-    server.log.error(
-      {
-        err,
-        request: {
-          method: request.method,
-          url: request.url,
-          query: request.query,
-          params: request.params
-        }
-      },
-      'Unhandled error occurred'
-    );
+  server.setErrorHandler(function (err, request, reply) {
+    if (err instanceof Fastify.errorCodes.FST_ERR_BAD_STATUS_CODE) {
+      this.log.error(
+        {
+          err,
+          request: {
+            method: request.method,
+            url: request.url,
+            query: request.query,
+            params: request.params
+          }
+        },
+        'Unhandled error occurred'
+      );
 
-    reply.code(err.statusCode ?? 500);
+      reply.code(err.statusCode ?? 500);
 
-    let message = 'Internal Server Error';
-    if (err.statusCode && err.statusCode < 500) {
-      message = err.message;
+      let message = 'Internal Server Error';
+      if (err.statusCode && err.statusCode < 500) {
+        message = err.message;
+      }
+
+      reply.send({ message });
+    } else {
+      reply.send(err);
     }
-
-    return { message };
   });
 
   return server;
