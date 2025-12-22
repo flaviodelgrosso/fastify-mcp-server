@@ -28,8 +28,8 @@ export class RedisSessionStore implements SessionStore {
   }
 
   public async save (sessionData: SessionData): Promise<void> {
-    await this.redis.hset(`session:${sessionData.sessionId}`, 'createdAt', sessionData.createdAt);
-    await this.redis.expire(`session:${sessionData.sessionId}`, this.ttl);
+    const key = `session:${sessionData.sessionId}`;
+    await this.redis.multi().hset(key, 'createdAt', sessionData.createdAt).expire(key, this.ttl).exec();
   }
 
   public async delete (sessionId: string): Promise<void> {
