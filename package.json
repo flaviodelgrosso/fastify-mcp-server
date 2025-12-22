@@ -44,7 +44,7 @@
     "inspector": "npx @modelcontextprotocol/inspector",
     "clean": "rimraf node_modules dist coverage",
     "version": "changeset version",
-    "publish": "changeset publish"
+    "release": "changeset tag"
   },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": "^1.x",
@@ -55,6 +55,7 @@
     "ioredis": "^5.8.2"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.8",
     "@commitlint/cli": "^20.2.0",
     "@commitlint/config-conventional": "^20.2.0",
     "@fastify/autoload": "^6.3.1",
