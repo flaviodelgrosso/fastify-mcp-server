@@ -207,7 +207,13 @@ describe('RedisSessionStore', () => {
 
   test('should get all session IDs', async () => {
     const redis = (store as any).redis;
-    redis.keys = async () => ['session:1', 'session:2', 'session:3'];
+    // Mock scan to return sessions in one batch
+    redis.scan = async (cursor: string) => {
+      if (cursor === '0') {
+        return ['0', ['session:1', 'session:2', 'session:3']];
+      }
+      return ['0', []];
+    };
 
     const ids = await store.getAllSessionIds();
     strictEqual(ids.length, 3);
@@ -218,7 +224,12 @@ describe('RedisSessionStore', () => {
 
   test('should delete all sessions', async () => {
     const redis = (store as any).redis;
-    redis.keys = async () => ['session:1', 'session:2'];
+    redis.scan = async (cursor: string) => {
+      if (cursor === '0') {
+        return ['0', ['session:1', 'session:2']];
+      }
+      return ['0', []];
+    };
     redis.del = async (...keys: string[]) => keys.length;
 
     await store.deleteAll();
@@ -228,7 +239,9 @@ describe('RedisSessionStore', () => {
 
   test('should handle deleteAll with no sessions', async () => {
     const redis = (store as any).redis;
-    redis.keys = async () => [];
+    redis.scan = async (cursor: string) => {
+      return ['0', []];
+    };
 
     await store.deleteAll();
     // Should complete without error
