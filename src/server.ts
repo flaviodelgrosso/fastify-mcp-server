@@ -1,9 +1,8 @@
 import mcpRoutes from './routes/mcp.ts';
 import wellKnownRoutes from './routes/well-known.ts';
-import { InMemorySessionManager } from './session-manager/memory.ts';
-import { RedisSessionManager } from './session-manager/redis.ts';
+import { SessionManager } from './session-manager/base.ts';
+import { InMemorySessionStore } from './session-manager/memory.ts';
 
-import type { SessionManager } from './session-manager/base.ts';
 import type { FastifyMcpServerOptions } from './types.ts';
 import type { FastifyInstance } from 'fastify';
 
@@ -21,12 +20,9 @@ export class FastifyMcpServer {
     this.fastify = app;
     this.options = options;
 
-    // Initialize session manager
-    if (options.redis) {
-      this.sessionManager = new RedisSessionManager(options.redis);
-    } else {
-      this.sessionManager = new InMemorySessionManager();
-    }
+    // Initialize session manager with provided or default session store
+    const sessionStore = options.sessionStore || new InMemorySessionStore();
+    this.sessionManager = new SessionManager(sessionStore);
 
     // Register OAuth metadata routes if oauth2 config is provided
     const oauth2 = options.authorization?.oauth2;
@@ -49,9 +45,9 @@ export class FastifyMcpServer {
   /**
    * Gets current session statistics
    */
-  public getStats () {
+  public async getStats () {
     return {
-      activeSessions: this.sessionManager.getSessionsCount(),
+      activeSessions: await this.sessionManager.getSessionsCount(),
       endpoint: this.endpoint
     };
   }

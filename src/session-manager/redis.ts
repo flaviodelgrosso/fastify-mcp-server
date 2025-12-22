@@ -1,54 +1,21 @@
-import { randomUUID } from 'node:crypto';
-
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { Redis, type RedisOptions } from 'ioredis';
 
-import { SessionManager, type SessionInfo } from './base.ts';
+import type { SessionData, SessionStore } from '../types.ts';
 
 /**
- * Manages MCP sessions using Redis for persistence
+ * Redis-based session store implementation
+ * Stores sessions in Redis with automatic expiration
  */
-export class RedisSessionManager extends SessionManager {
+export class RedisSessionStore implements SessionStore {
   private redis: Redis;
+  private ttl: number;
 
-  constructor (options: RedisOptions) {
-    super();
+  constructor (options: RedisOptions, ttl: number = 3600) {
     this.redis = new Redis(options);
+    this.ttl = ttl;
   }
 
-  /**
-   * Creates a new transport and session
-   */
-  public createTransport (): StreamableHTTPServerTransport {
-    const uuid = randomUUID();
-
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => uuid,
-      onsessioninitialized: async (sessionId) => {
-        this.storeTransport(sessionId, transport);
-        await this.storeSession(sessionId);
-        this.emit('sessionCreated', sessionId);
-      }
-    });
-
-    this.setupTransportHandlers(transport, uuid);
-
-    return transport;
-  }
-
-  public async attachTransport (sessionId: string): Promise<StreamableHTTPServerTransport> {
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined
-    });
-
-    this.storeTransport(sessionId, transport);
-    this.setupTransportHandlers(transport, sessionId);
-
-    transport.sessionId = sessionId;
-    return transport;
-  }
-
-  public async getSession (sessionId: string): Promise<SessionInfo | undefined> {
+  public async load (sessionId: string): Promise<SessionData | undefined> {
     const data = await this.redis.hgetall(`session:${sessionId}`);
     if (Object.keys(data).length === 0) {
       return undefined;
@@ -60,38 +27,31 @@ export class RedisSessionManager extends SessionManager {
     };
   }
 
-  /**
-   * Destroys a session and cleans up resources
-   */
-  public async destroySession (sessionId: string): Promise<void> {
-    const deleted = await this.redis.del(`session:${sessionId}`);
-    const hasTransport = this.removeTransport(sessionId);
-
-    if (deleted > 0 || hasTransport) {
-      this.emit('sessionDestroyed', sessionId);
-    }
+  public async save (sessionData: SessionData): Promise<void> {
+    await this.redis.hset(`session:${sessionData.sessionId}`, 'createdAt', sessionData.createdAt);
+    await this.redis.expire(`session:${sessionData.sessionId}`, this.ttl);
   }
 
-  /**
-   * Gets the current number of active sessions
-   */
-  public async getSessionsCount (): Promise<number> {
-    return this.redis.keys('session:*').then((keys) => keys.length);
+  public async delete (sessionId: string): Promise<void> {
+    await this.redis.del(`session:${sessionId}`);
   }
 
-  /**
-   * Destroys all sessions
-   */
-  public async destroyAllSessions (): Promise<void> {
+  public async getAllSessionIds (): Promise<string[]> {
+    const keys = await this.redis.keys('session:*');
+    return keys.map((key) => key.replace('session:', ''));
+  }
+
+  public async deleteAll (): Promise<void> {
     const keys = await this.redis.keys('session:*');
     if (keys.length > 0) {
       await this.redis.del(...keys);
     }
-    this.transports.clear();
   }
 
-  private async storeSession (sessionId: string): Promise<void> {
-    await this.redis.hset(`session:${sessionId}`, 'createdAt', Date.now());
-    await this.redis.expire(`session:${sessionId}`, '3600');
+  /**
+   * Close the Redis connection
+   */
+  public async close (): Promise<void> {
+    await this.redis.quit();
   }
 }

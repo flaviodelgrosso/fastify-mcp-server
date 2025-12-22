@@ -132,20 +132,16 @@ describe('Session Events', () => {
 });
 
 describe('Redis Session Events', () => {
-  test('should emit sessionCreated event with Redis session manager', async () => {
-    const app = await buildApp({
-      redis: {
-        host: 'localhost',
-        port: 6379,
-        lazyConnect: true
-      }
+  test('should emit sessionCreated event with Redis session store', async () => {
+    const { RedisSessionStore } = await import('../src/session-manager/redis.ts');
+    const redisStore = new RedisSessionStore({
+      host: 'localhost',
+      port: 6379,
+      lazyConnect: true
     });
 
-    const mcp = getMcpDecorator(app);
-    const sessionManager = mcp.getSessionManager();
-
     // Mock Redis methods
-    const redis = (sessionManager as any).redis;
+    const redis = (redisStore as any).redis;
     redis.hset = async () => 1;
     redis.expire = async () => 1;
     redis.hgetall = async (key: string) => {
@@ -153,6 +149,14 @@ describe('Redis Session Events', () => {
       return { sessionId, createdAt: Date.now().toString() };
     };
     redis.del = async () => 1;
+    redis.keys = async () => [];
+
+    const app = await buildApp({
+      sessionStore: redisStore
+    });
+
+    const mcp = getMcpDecorator(app);
+    const sessionManager = mcp.getSessionManager();
 
     const eventPromise = new Promise<string>((resolve) => {
       sessionManager.on('sessionCreated', (sessionId) => {
@@ -185,6 +189,6 @@ describe('Redis Session Events', () => {
     const sessionId = await eventPromise;
     ok(sessionId);
     await sessionManager.destroySession(sessionId);
-    await redis.quit();
+    await redisStore.close();
   });
 });

@@ -1,6 +1,6 @@
 import fp from 'fastify-plugin';
 
-import FastifyMcpStreamableHttp, { getMcpDecorator } from '../../src/index.ts';
+import FastifyMcpStreamableHttp, { getMcpDecorator, RedisSessionStore } from '../../src/index.ts';
 import { createMcpServer } from '../mcp/server.ts';
 
 import type { FastifyMcpServerOptions } from '../../src/types.ts';
@@ -18,19 +18,19 @@ class BearerTokenVerifier implements OAuthTokenVerifier {
 }
 
 const withRedis = process.argv.includes('--redis');
-const redis = withRedis
-  ? {
-      host: 'localhost',
-      port: 6379,
-      db: 0
-    }
-  : undefined;
+const sessionStore = withRedis
+  ? new RedisSessionStore({
+    host: 'localhost',
+    port: 6379,
+    db: 0
+  })
+  : undefined; // uses InMemorySessionStore by default
 
 const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpServerOptions> = async (app) => {
   await app.register(FastifyMcpStreamableHttp, {
     createMcpServer,
     endpoint: '/mcp', // optional, defaults to '/mcp'
-    redis,
+    sessionStore,
     authorization: {
       bearerMiddlewareOptions: {
         verifier: new BearerTokenVerifier()

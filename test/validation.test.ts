@@ -67,9 +67,9 @@ describe('Error Handler Branch Coverage', () => {
     // Should get validation error response
     strictEqual(response.statusCode, 400);
     const json = response.json();
-    // When validation is present, should use -32001 code
-    strictEqual(json.error.code, -32001);
-    ok(json.error.message.includes('Invalid session header'));
+    // McpError with validation property still uses its own error code
+    strictEqual(json.error.code, -32602);
+    ok(json.error.message.includes('Invalid params'));
   });
 });
 

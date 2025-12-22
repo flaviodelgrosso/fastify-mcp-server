@@ -10,7 +10,7 @@ describe('Plugin Registration', () => {
     const app = await buildApp();
     const mcp = getMcpDecorator(app);
 
-    const stats = mcp.getStats();
+    const stats = await mcp.getStats();
 
     strictEqual(stats.endpoint, '/mcp');
     strictEqual(stats.activeSessions, 0);
@@ -22,7 +22,7 @@ describe('Plugin Registration', () => {
     const app = await buildApp({ endpoint: customEndpoint });
     const mcp = getMcpDecorator(app);
 
-    const stats = mcp.getStats();
+    const stats = await mcp.getStats();
 
     strictEqual(stats.endpoint, customEndpoint);
   });

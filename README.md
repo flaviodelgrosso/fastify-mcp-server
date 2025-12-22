@@ -31,10 +31,13 @@ A robust Fastify plugin that provides seamless integration with the Model Contex
     - [Custom Error Handling](#custom-error-handling)
     - [Health Monitoring](#health-monitoring)
     - [Graceful Shutdown](#graceful-shutdown)
-  - [Redis Session Storage](#redis-session-storage)
-    - [Enabling Redis](#enabling-redis)
+  - [Session Storage](#session-storage)
+    - [Built-in Session Stores](#built-in-session-stores)
+      - [In-Memory Session Store (Default)](#in-memory-session-store-default)
+      - [Redis Session Store](#redis-session-store)
+    - [Custom Session Store](#custom-session-store)
     - [How It Works](#how-it-works)
-    - [Redis vs In-Memory](#redis-vs-in-memory)
+    - [Comparison](#comparison)
     - [Docker Compose Example](#docker-compose-example)
   - [Authentication: Bearer Token Support](#authentication-bearer-token-support)
     - [Enabling Bearer Token Authentication](#enabling-bearer-token-authentication)
@@ -70,7 +73,7 @@ The Model Context Protocol (MCP) is an open standard that enables AI assistants 
 - ✅ **MCP Server Integration**: Seamless integration with `@modelcontextprotocol/sdk`
 - ✅ **Streamable HTTP Transport**: Full support for MCP's streamable HTTP protocol
 - ✅ **Session Management**: Automatic session creation, tracking, and cleanup
-- ✅ **Session Storage**: Support for in-memory and Redis-based session storage
+- ✅ **Session Storage**: Support for in-memory and custom session stores (Redis included)
 - ✅ **Request Routing**: Intelligent routing for different MCP request types
 - ✅ **Authentication**: Optional Bearer token support for secure access
 - ✅ **Error Handling**: Comprehensive error handling with proper MCP error responses
@@ -81,7 +84,7 @@ The Model Context Protocol (MCP) is an open standard that enables AI assistants 
 - ✅ **Session Statistics**: Real-time monitoring of active sessions
 - ✅ **Graceful Shutdown**: Proper cleanup of all sessions during server shutdown
 - ✅ **Configurable Endpoints**: Customizable MCP endpoint paths
-- ✅ **Redis Support**: Optional Redis backend for distributed session management
+- ✅ **Custom Session Stores**: Implement your own session storage backend
 - ✅ **TypeScript Support**: Full type safety and IntelliSense support
 
 ## Installation
@@ -165,7 +168,7 @@ type FastifyMcpServerOptions = {
       protectedResourceOAuthMetadata: OAuthProtectedResourceMetadata; // OAuth metadata for protected resource
     };
   };
-  redis?: RedisOptions; // Optional Redis configuration for session storage
+  sessionStore?: SessionStore; // Optional custom session store implementation
 };
 ```
 
@@ -287,46 +290,97 @@ closeWithGrace({ delay: 500 }, async ({ signal, err }) => {
 });
 ```
 
-## Redis Session Storage
+## Session Storage
 
-The plugin supports Redis-based session storage for distributed deployments and improved scalability. This is useful when running multiple instances of your server or when you need session persistence across restarts.
+The plugin provides a flexible session storage system that allows you to choose or implement your own storage backend. By default, sessions are stored in memory, but you can use Redis or create your own custom implementation.
 
-### Enabling Redis
+### Built-in Session Stores
 
-Pass the `redis` option with your Redis connection configuration:
+#### In-Memory Session Store (Default)
 
 ```typescript
-import type { RedisOptions } from 'ioredis';
+import { InMemorySessionStore } from 'fastify-mcp-server';
+
+await app.register(FastifyMcpServer, {
+  createMcpServer
+  // sessionStore option is optional - InMemorySessionStore is used by default
+});
+```
+
+#### Redis Session Store
+
+For production deployments or distributed systems, use the Redis session store:
+
+```typescript
+import { RedisSessionStore } from 'fastify-mcp-server';
+
+const redisStore = new RedisSessionStore({
+  host: 'localhost',
+  port: 6379,
+  db: 0
+  // Additional ioredis options...
+});
 
 await app.register(FastifyMcpServer, {
   createMcpServer,
-  endpoint: '/mcp',
-  redis: {
-    host: 'localhost',
-    port: 6379,
-    db: 0
-    // Additional ioredis options...
+  sessionStore: redisStore
+});
+```
+
+### Custom Session Store
+
+You can implement your own session store by implementing the `SessionStore` interface:
+
+```typescript
+import type { SessionStore, SessionData } from 'fastify-mcp-server';
+
+class MyCustomSessionStore implements SessionStore {
+  async load (sessionId: string): Promise<SessionData | undefined> {
+    // Load session from your storage backend
   }
+
+  async save (sessionData: SessionData): Promise<void> {
+    // Save session to your storage backend
+  }
+
+  async delete (sessionId: string): Promise<void> {
+    // Delete session from your storage backend
+  }
+
+  async getAllSessionIds (): Promise<string[]> {
+    // Return all session IDs
+  }
+
+  async deleteAll (): Promise<void> {
+    // Delete all sessions
+  }
+}
+
+// Use your custom store
+await app.register(FastifyMcpServer, {
+  createMcpServer,
+  sessionStore: new MyCustomSessionStore()
 });
 ```
 
 ### How It Works
 
-When Redis is configured:
+The session store is responsible for persisting session metadata (session ID and creation time). The plugin manages transports and MCP server connections in memory for performance, while session metadata can be stored in your chosen backend.
 
-- **Session Creation**: New sessions are stored in Redis with their metadata
-- **Session Retrieval**: Session data is fetched from Redis for each request
-- **Session Cleanup**: Sessions are automatically removed from Redis when destroyed
-- **Transport Storage**: The local transport map is maintained for active connections
+- **Session Creation**: When a client initializes, session metadata is saved to the store
+- **Session Retrieval**: Session data is loaded from the store to validate existing sessions
+- **Session Cleanup**: Sessions are removed from the store when destroyed
+- **Transport Management**: Active transports are maintained in memory for fast access
 
-### Redis vs In-Memory
+### Comparison
 
-| Feature         | In-Memory                    | Redis                           |
-| --------------- | ---------------------------- | ------------------------------- |
-| **Persistence** | Lost on restart              | Persists across restarts        |
-| **Scalability** | Single instance              | Multiple instances              |
-| **Performance** | Fastest                      | Slightly slower (network)       |
-| **Use Case**    | Development, single instance | Production, distributed systems |
+| Feature         | In-Memory                    | Redis                           | Custom                       |
+| --------------- | ---------------------------- | ------------------------------- | ---------------------------- |
+| **Persistence** | Lost on restart              | Persists across restarts        | Depends on implementation    |
+| **Scalability** | Single instance              | Multiple instances              | Depends on implementation    |
+| **Performance** | Fastest                      | Slightly slower (network)       | Depends on implementation    |
+| **Use Case**    | Development, single instance | Production, distributed systems | Specialized requirements     |
+| **Setup**       | No configuration needed      | Requires Redis server           | Custom implementation needed |
 
 ### Docker Compose Example
 

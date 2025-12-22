@@ -1,7 +1,50 @@
 import type { BearerAuthMiddlewareOptions } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { OAuthProtectedResourceMetadata, OAuthMetadata } from '@modelcontextprotocol/sdk/shared/auth.js';
-import type { RedisOptions } from 'ioredis';
+
+/**
+ * Session data stored by the SessionStore
+ */
+export type SessionData = {
+  sessionId: string;
+  createdAt: number;
+};
+
+/**
+ * Interface for session storage implementations
+ * Users can implement this interface to provide their own session storage backend
+ */
+export interface SessionStore {
+  /**
+   * Load a session by ID
+   * @param sessionId - The session ID to load
+   * @returns The session data or undefined if not found
+   */
+  load (sessionId: string): Promise<SessionData | undefined> | SessionData | undefined;
+
+  /**
+   * Save a session
+   * @param sessionData - The session data to save
+   */
+  save (sessionData: SessionData): Promise<void> | void;
+
+  /**
+   * Delete a session by ID
+   * @param sessionId - The session ID to delete
+   */
+  delete (sessionId: string): Promise<void> | void;
+
+  /**
+   * Get all session IDs
+   * @returns Array of all session IDs
+   */
+  getAllSessionIds (): Promise<string[]> | string[];
+
+  /**
+   * Delete all sessions
+   */
+  deleteAll (): Promise<void> | void;
+}
 
 export type AuthorizationOptions = {
   /**
@@ -38,7 +81,8 @@ export type FastifyMcpServerOptions = {
    */
   authorization?: AuthorizationOptions;
   /**
-   * Redis configuration options for session storage.
+   * Session store implementation for managing session persistence
+   * If not provided, an in-memory session store will be used
    */
-  redis?: RedisOptions;
+  sessionStore?: SessionStore;
 };

@@ -247,7 +247,7 @@ describe('Sessions', async () => {
 
     const sessionId = initializeResponse.headers['mcp-session-id'];
     ok(sessionId);
-    strictEqual(mcp.getStats().activeSessions, 1);
+    strictEqual((await mcp.getStats()).activeSessions, 1);
 
     const deleteResponse = await app.inject({
       method: 'DELETE',
@@ -259,7 +259,7 @@ describe('Sessions', async () => {
     });
 
     strictEqual(deleteResponse.statusCode, 200);
-    strictEqual(mcp.getStats().activeSessions, 0);
+    strictEqual((await mcp.getStats()).activeSessions, 0);
   });
 
   test('should handle DELETE request with without transport or session ID', async () => {
@@ -273,6 +273,6 @@ describe('Sessions', async () => {
     });
 
     strictEqual(deleteResponse.statusCode, 400);
-    strictEqual(mcp.getStats().activeSessions, 0);
+    strictEqual((await mcp.getStats()).activeSessions, 0);
   });
 });

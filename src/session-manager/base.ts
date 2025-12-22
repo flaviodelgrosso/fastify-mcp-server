@@ -1,6 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import EventEmitter from 'node:events';
 
-import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+
+import type { SessionData, SessionStore } from '../types.ts';
 
 type SessionsEvents = {
   sessionCreated: [string];
@@ -8,34 +11,51 @@ type SessionsEvents = {
   transportError: [string, Error];
 };
 
-export type SessionInfo = {
-  sessionId: string;
-  createdAt: number;
-};
+/**
+ * Manages MCP sessions using a pluggable SessionStore for persistence
+ */
+export class SessionManager extends EventEmitter<SessionsEvents> {
+  private transports: Map<string, StreamableHTTPServerTransport> = new Map();
+  private store: SessionStore;
 
-interface ISessionManager {
-  createTransport (): StreamableHTTPServerTransport;
-  attachTransport (sessionId: string): StreamableHTTPServerTransport | Promise<StreamableHTTPServerTransport>;
-  getTransport (sessionId: string): StreamableHTTPServerTransport | undefined;
-  getSession (sessionId: string): SessionInfo | undefined | Promise<SessionInfo | undefined>;
-  destroySession (sessionId: string): void | Promise<void>;
-  destroyAllSessions (): void | Promise<void>;
-  getSessionsCount (): number | Promise<number>;
-}
-
-export abstract class SessionManager extends EventEmitter<SessionsEvents> implements ISessionManager {
-  protected transports: Map<string, StreamableHTTPServerTransport> = new Map();
-
-  constructor () {
+  constructor (store: SessionStore) {
     super({ captureRejections: true });
+    this.store = store;
   }
 
-  abstract createTransport (): StreamableHTTPServerTransport;
-  abstract attachTransport (sessionId: string): StreamableHTTPServerTransport | Promise<StreamableHTTPServerTransport>;
-  abstract getSession (sessionId: string): SessionInfo | undefined | Promise<SessionInfo | undefined>;
-  abstract destroySession (sessionId: string): void | Promise<void>;
-  abstract destroyAllSessions (): void | Promise<void>;
-  abstract getSessionsCount (): number | Promise<number>;
+  /**
+   * Creates a new transport and session
+   */
+  public createTransport (): StreamableHTTPServerTransport {
+    const uuid = randomUUID();
+
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => uuid,
+      onsessioninitialized: async (sessionId) => {
+        this.transports.set(sessionId, transport);
+        await this.saveSession(sessionId);
+        this.emit('sessionCreated', sessionId);
+      }
+    });
+
+    this.setupTransportHandlers(transport, uuid);
+
+    return transport;
+  }
+
+  /**
+   * Attaches a transport to an existing session
+   */
+  public async attachTransport (sessionId: string): Promise<StreamableHTTPServerTransport> {
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined
+    });
+
+    this.transports.set(sessionId, transport);
+    this.setupTransportHandlers(transport, sessionId);
+
+    return transport;
+  }
 
   /**
    * Retrieves an existing transport by session ID
@@ -45,10 +65,55 @@ export abstract class SessionManager extends EventEmitter<SessionsEvents> implem
   }
 
   /**
-   * Sets up common transport event handlers (onclose and onerror)
-   * This method should be called by implementations after creating a transport
+   * Gets session data from the store
    */
-  protected setupTransportHandlers (transport: StreamableHTTPServerTransport, sessionId: string): void {
+  public async getSession (sessionId: string): Promise<SessionData | undefined> {
+    return await this.store.load(sessionId);
+  }
+
+  /**
+   * Destroys a session and cleans up resources
+   */
+  public async destroySession (sessionId: string): Promise<void> {
+    const hasTransport = this.transports.delete(sessionId);
+    await this.store.delete(sessionId);
+
+    if (hasTransport) {
+      this.emit('sessionDestroyed', sessionId);
+    }
+  }
+
+  /**
+   * Gets the current number of active sessions
+   */
+  public async getSessionsCount (): Promise<number> {
+    return this.transports.size;
+  }
+
+  /**
+   * Destroys all sessions
+   */
+  public async destroyAllSessions (): Promise<void> {
+    const sessionIds = Array.from(this.transports.keys());
+    await Promise.all(sessionIds.map((id) => this.destroySession(id)));
+    await this.store.deleteAll();
+  }
+
+  /**
+   * Saves session data to the store
+   */
+  private async saveSession (sessionId: string): Promise<void> {
+    const sessionData: SessionData = {
+      sessionId,
+      createdAt: Date.now()
+    };
+    await this.store.save(sessionData);
+  }
+
+  /**
+   * Sets up common transport event handlers (onclose and onerror)
+   */
+  private setupTransportHandlers (transport: StreamableHTTPServerTransport, sessionId: string): void {
     /* c8 ignore next 4 */
     transport.onclose = () => {
       if (transport.sessionId) {
@@ -60,21 +125,5 @@ export abstract class SessionManager extends EventEmitter<SessionsEvents> implem
     transport.onerror = (error) => {
       this.emit('transportError', sessionId, error);
     };
-  }
-
-  /**
-   * Stores a transport in the local map
-   * Implementations should call this after creating or attaching a transport
-   */
-  protected storeTransport (sessionId: string, transport: StreamableHTTPServerTransport): void {
-    this.transports.set(sessionId, transport);
-  }
-
-  /**
-   * Removes a transport from the local map
-   * Implementations should call this when destroying a session
-   */
-  protected removeTransport (sessionId: string): boolean {
-    return this.transports.delete(sessionId);
   }
 }

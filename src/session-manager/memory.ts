@@ -1,86 +1,29 @@
-import { randomUUID } from 'node:crypto';
-
-import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-
-import { SessionManager, type SessionInfo } from './base.ts';
+import type { SessionData, SessionStore } from '../types.ts';
 
 /**
- * Manages MCP sessions in memory with proper lifecycle handling
+ * Simple in-memory session store implementation
+ * Stores sessions in a Map for development and testing purposes
  */
-export class InMemorySessionManager extends SessionManager {
-  private sessions: Map<string, SessionInfo> = new Map();
+export class InMemorySessionStore implements SessionStore {
+  private sessions: Map<string, SessionData> = new Map();
 
-  /**
-   * Creates a new transport and session
-   */
-  public createTransport (): StreamableHTTPServerTransport {
-    const uuid = randomUUID();
-
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => uuid,
-      eventStore: new InMemoryEventStore(),
-      onsessioninitialized: (sessionId) => {
-        this.storeTransport(sessionId, transport);
-        this.storeSession(sessionId);
-        this.emit('sessionCreated', sessionId);
-      }
-    });
-
-    this.setupTransportHandlers(transport, uuid);
-
-    return transport;
-  }
-
-  public attachTransport (sessionId: string): StreamableHTTPServerTransport {
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      eventStore: new InMemoryEventStore()
-    });
-
-    this.storeTransport(sessionId, transport);
-    this.setupTransportHandlers(transport, sessionId);
-
-    transport.sessionId = sessionId;
-    return transport;
-  }
-
-  public getSession (sessionId: string): SessionInfo | undefined {
+  public load (sessionId: string): SessionData | undefined {
     return this.sessions.get(sessionId);
   }
 
-  /**
-   * Destroys a session and cleans up resources
-   */
-  public destroySession (sessionId: string): void {
-    const hasTransport = this.removeTransport(sessionId);
-    const hasSession = this.sessions.delete(sessionId);
-
-    if (hasTransport || hasSession) {
-      this.emit('sessionDestroyed', sessionId);
-    }
+  public save (sessionData: SessionData): void {
+    this.sessions.set(sessionData.sessionId, sessionData);
   }
 
-  /**
-   * Gets the current number of active sessions
-   */
-  public getSessionsCount (): number {
-    return this.transports.size;
+  public delete (sessionId: string): void {
+    this.sessions.delete(sessionId);
   }
 
-  /**
-   * Destroys all sessions
-   */
-  public destroyAllSessions (): void {
-    const sessionIds = Array.from(this.transports.keys());
-    sessionIds.forEach((id) => this.destroySession(id));
+  public getAllSessionIds (): string[] {
+    return Array.from(this.sessions.keys());
   }
 
-  private storeSession (sessionId: string): void {
-    const sessionInfo: SessionInfo = {
-      sessionId,
-      createdAt: Date.now()
-    };
-    this.sessions.set(sessionId, sessionInfo);
+  public deleteAll (): void {
+    this.sessions.clear();
   }
 }
