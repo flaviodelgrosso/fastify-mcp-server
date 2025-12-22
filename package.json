@@ -50,8 +50,7 @@
   },
   "dependencies": {
     "fastify-plugin": "^5.1.0",
-    "ioredis": "^5.8.2",
-    "zod-to-json-schema": "^3.25.0"
+    "ioredis": "^5.8.2"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.2.0",

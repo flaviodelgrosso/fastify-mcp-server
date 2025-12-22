@@ -1,6 +1,6 @@
 import { OAuthMetadataSchema, OAuthProtectedResourceMetadataSchema } from '@modelcontextprotocol/sdk/shared/auth.js';
 import fp from 'fastify-plugin';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { z } from 'zod';
 
 import type { AuthorizationOptions } from '../types.ts';
 import type { FastifyInstance } from 'fastify';
@@ -13,7 +13,7 @@ async function wellKnownRoutesPlugin (app: FastifyInstance, options: Pick<Requir
     url: '/.well-known/oauth-authorization-server',
     schema: {
       response: {
-        200: zodToJsonSchema(OAuthMetadataSchema)
+        200: z.toJSONSchema(OAuthMetadataSchema)
       }
     },
     handler: async (_request, reply) => {
@@ -26,7 +26,7 @@ async function wellKnownRoutesPlugin (app: FastifyInstance, options: Pick<Requir
     url: '/.well-known/oauth-protected-resource',
     schema: {
       response: {
-        200: zodToJsonSchema(OAuthProtectedResourceMetadataSchema)
+        200: z.toJSONSchema(OAuthProtectedResourceMetadataSchema)
       }
     },
     handler: async (_request, reply) => {
