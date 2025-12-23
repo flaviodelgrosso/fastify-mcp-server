@@ -133,7 +133,7 @@ describe('Session Events', () => {
 
 describe('Redis Session Events', () => {
   test('should emit sessionCreated event with Redis session store', async () => {
-    const { RedisSessionStore } = await import('../src/session-manager/redis.ts');
+    const { RedisSessionStore } = await import('../src/sessions/store/redis.ts');
     const redisStore = new RedisSessionStore({
       host: 'localhost',
       port: 6379,

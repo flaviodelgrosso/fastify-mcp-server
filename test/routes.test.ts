@@ -119,7 +119,7 @@ describe('MCP Routes - Edge Cases', () => {
 
 describe('Server Configuration', () => {
   test('should use custom session store when provided', async () => {
-    const { RedisSessionStore } = await import('../src/session-manager/redis.ts');
+    const { RedisSessionStore } = await import('../src/sessions/store/redis.ts');
     const redisStore = new RedisSessionStore({
       host: 'localhost',
       port: 6379,

@@ -29,10 +29,7 @@ export default fp(FastifyMcp, {
   fastify: '5.x'
 });
 
-// Export types
-export type { FastifyMcpServerOptions, SessionStore, SessionData } from './types.ts';
-
-// Export session store implementations
-export { InMemorySessionStore } from './session-manager/memory.ts';
-export { RedisSessionStore } from './session-manager/redis.ts';
-export { SessionManager } from './session-manager/base.ts';
+export * from './types.ts';
+export { InMemorySessionStore } from './sessions/store/memory.ts';
+export { RedisSessionStore } from './sessions/store/redis.ts';
+export { SessionManager } from './sessions/manager.ts';

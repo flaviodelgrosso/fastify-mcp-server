@@ -1,7 +1,7 @@
 import mcpRoutes from './routes/mcp.ts';
 import wellKnownRoutes from './routes/well-known.ts';
-import { SessionManager } from './session-manager/base.ts';
-import { InMemorySessionStore } from './session-manager/memory.ts';
+import { SessionManager } from './sessions/manager.ts';
+import { InMemorySessionStore } from './sessions/store/memory.ts';
 
 import type { FastifyMcpServerOptions } from './types.ts';
 import type { FastifyInstance } from 'fastify';

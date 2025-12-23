@@ -27,10 +27,10 @@ export class SessionManager extends EventEmitter<SessionsEvents> {
    * Creates a new transport and session
    */
   public createTransport (): StreamableHTTPServerTransport {
-    const uuid = randomUUID();
+    const sessionId = randomUUID();
 
     const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => uuid,
+      sessionIdGenerator: () => sessionId,
       onsessioninitialized: async (sessionId) => {
         this.transports.set(sessionId, transport);
         await this.saveSession(sessionId);
@@ -38,7 +38,7 @@ export class SessionManager extends EventEmitter<SessionsEvents> {
       }
     });
 
-    this.setupTransportHandlers(transport, uuid);
+    this.setupTransportHandlers(transport, sessionId);
 
     return transport;
   }

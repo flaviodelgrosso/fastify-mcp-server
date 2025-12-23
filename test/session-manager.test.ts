@@ -1,9 +1,9 @@
 import { strictEqual, ok } from 'node:assert';
 import { afterEach, beforeEach, describe, test } from 'node:test';
 
-import { SessionManager } from '../src/session-manager/base.ts';
-import { InMemorySessionStore } from '../src/session-manager/memory.ts';
-import { RedisSessionStore } from '../src/session-manager/redis.ts';
+import { SessionManager } from '../src/sessions/manager.ts';
+import { InMemorySessionStore } from '../src/sessions/store/memory.ts';
+import { RedisSessionStore } from '../src/sessions/store/redis.ts';
 
 describe('InMemorySessionStore', () => {
   let store: InMemorySessionStore;
@@ -239,7 +239,7 @@ describe('RedisSessionStore', () => {
 
   test('should handle deleteAll with no sessions', async () => {
     const redis = (store as any).redis;
-    redis.scan = async (cursor: string) => {
+    redis.scan = async (_cursor: string) => {
       return ['0', []];
     };
 

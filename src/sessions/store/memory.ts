@@ -1,4 +1,4 @@
-import type { SessionData, SessionStore } from '../types.ts';
+import type { SessionData, SessionStore } from '../../types.ts';
 
 /**
  * Simple in-memory session store implementation

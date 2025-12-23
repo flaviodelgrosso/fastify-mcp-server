@@ -1,6 +1,6 @@
 import { Redis, type RedisOptions } from 'ioredis';
 
-import type { SessionData, SessionStore } from '../types.ts';
+import type { SessionData, SessionStore } from '../../types.ts';
 
 /**
  * Redis-based session store implementation

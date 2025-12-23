@@ -6,7 +6,7 @@ import { addBearerPreHandlerHook } from '../bearer.ts';
 import { InvalidRequestError, SessionNotFoundError, setMcpErrorHandler } from '../errors.ts';
 import { getMcpDecorator } from '../index.ts';
 
-import type { SessionManager } from '../session-manager/base.ts';
+import type { SessionManager } from '../sessions/manager.ts';
 import type { AuthorizationOptions } from '../types.ts';
 import type { FastifyInstance } from 'fastify';
 
