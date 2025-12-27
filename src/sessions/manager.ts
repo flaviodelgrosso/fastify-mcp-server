@@ -47,8 +47,6 @@ export class SessionManager extends EventEmitter<SessionsEvents> {
       ...this.transportOptions
     });
 
-    this.transports.set(sessionId, transport);
-
     /* c8 ignore next 4 */
     transport.onclose = () => {
       if (transport.sessionId) {
@@ -60,6 +58,8 @@ export class SessionManager extends EventEmitter<SessionsEvents> {
     transport.onerror = (error) => {
       this.emit('transportError', sessionId, error);
     };
+
+    this.transports.set(sessionId, transport);
 
     return transport;
   }
