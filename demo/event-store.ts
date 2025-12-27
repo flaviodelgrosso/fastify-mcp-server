@@ -43,7 +43,7 @@ export class RedisEventStore implements EventStore {
     let nextId = lastEventId;
     while (true) {
       // Fetch events from the stream starting AFTER the next ID (exclusive)
-      const events = await this.redis.xrange(`stream:${streamId}`, nextId, '+', 'COUNT', 100);
+      const events = await this.redis.xrange(`stream:${streamId}`, `(${nextId}`, '+', 'COUNT', 10);
 
       // Convert the returned object to an array of entries
       const eventEntries = Object.entries(events);
