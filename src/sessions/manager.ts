@@ -64,10 +64,6 @@ export class SessionManager extends EventEmitter<SessionsEvents> {
     return transport;
   }
 
-  public setTransportOptions (options: StreamableHTTPServerTransportOptions) {
-    this.transportOptions = options;
-  }
-
   /**
    * Retrieves an existing transport by session ID
    */

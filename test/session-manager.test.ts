@@ -1,6 +1,8 @@
 import { strictEqual, ok } from 'node:assert';
 import { afterEach, beforeEach, describe, test } from 'node:test';
 
+import { buildApp } from './setupTests.ts';
+
 import { SessionManager } from '../src/sessions/manager.ts';
 import { InMemorySessionStore } from '../src/sessions/store/memory.ts';
 import { RedisSessionStore } from '../src/sessions/store/redis.ts';
@@ -125,14 +127,38 @@ describe('SessionManager with InMemorySessionStore', () => {
   });
 
   test('should handle custom transport options', async () => {
-    const sessionId = 'custom-session-id';
-    manager.setTransportOptions({
-      sessionIdGenerator: () => sessionId
+    const sessionId = 'test-custom-transport-options-session-id';
+
+    const app = await buildApp({
+      transportOptions: {
+        sessionIdGenerator: () => sessionId
+      }
     });
 
-    manager.createTransport();
+    const initResponse = await app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream'
+      },
+      body: {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-03-26',
+          capabilities: {},
+          clientInfo: {
+            name: 'ExampleClient',
+            version: '1.0.0'
+          }
+        }
+      }
+    });
 
-    strictEqual((manager as unknown as any).transports.size, 1);
+    const sessionIdHeader = initResponse.headers['mcp-session-id'] as string;
+    strictEqual(sessionIdHeader, sessionId);
   });
 });
 
