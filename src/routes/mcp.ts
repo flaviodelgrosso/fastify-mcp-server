@@ -52,6 +52,7 @@ async function mcpRoutesPlugin (fastify: FastifyInstance, options: McpRoutesOpti
       if (sessionId) {
         transport = sessionManager.getTransport(sessionId);
         if (!transport) {
+          await sessionManager.destroySession(sessionId);
           throw new SessionNotFoundError();
         }
       } else {
