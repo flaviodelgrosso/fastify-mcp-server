@@ -42,7 +42,6 @@ export class SessionManager extends EventEmitter<SessionsEvents> {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => sessionId,
       onsessioninitialized: async (sessionId) => {
-        this.emit('sessionCreated', sessionId);
         await this.saveSession(sessionId);
       },
       ...this.transportOptions
@@ -114,11 +113,13 @@ export class SessionManager extends EventEmitter<SessionsEvents> {
   /**
    * Saves session data to the store
    */
-  public async saveSession (sessionId: string): Promise<void> {
+  private async saveSession (sessionId: string): Promise<void> {
     const sessionData: SessionData = {
       sessionId,
       createdAt: Date.now()
     };
+
     await this.store.save(sessionData);
+    this.emit('sessionCreated', sessionId);
   }
 }
