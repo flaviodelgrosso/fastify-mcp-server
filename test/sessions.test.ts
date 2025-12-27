@@ -275,4 +275,75 @@ describe('Sessions', async () => {
     strictEqual(deleteResponse.statusCode, 400);
     strictEqual((await mcp.getStats()).activeSessions, 0);
   });
+
+  test('should handle request when session exists in store but transport is missing', async () => {
+    // Create a session and initialize it
+    const initResponse = await app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream'
+      },
+      body: {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-03-26',
+          capabilities: {},
+          clientInfo: {
+            name: 'ExampleClient',
+            version: '1.0.0'
+          }
+        }
+      }
+    });
+
+    const sessionId = initResponse.headers['mcp-session-id'] as string;
+    ok(sessionId);
+
+    // Manually remove the transport while keeping the session in the store
+    // This simulates a scenario like server restart where persistent data exists but in-memory state is lost
+    const sessionManager = mcp.getSessionManager();
+    const transport = sessionManager.getTransport(sessionId);
+    ok(transport);
+
+    // @ts-expect-error - Accessing private property for testing
+    sessionManager.transports.delete(sessionId);
+
+    // Verify the session still exists in the store
+    const sessionData = await sessionManager.getSession(sessionId);
+    ok(sessionData);
+
+    // Now make a request with the session ID
+    // The preHandler will pass (session exists in store)
+    // But the handler should fail when trying to get the transport
+    const response = await app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        'mcp-session-id': sessionId
+      },
+      body: {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'ping',
+        params: {}
+      }
+    });
+
+    strictEqual(response.statusCode, 400);
+    deepStrictEqual(response.json(), {
+      jsonrpc: '2.0',
+      error: { code: -32003, message: 'MCP error -32003: Session not found' },
+      id: null
+    });
+
+    // Cleanup: manually delete the session from the store
+    // @ts-expect-error - Accessing private property for testing
+    await sessionManager.store.delete(sessionId);
+  });
 });

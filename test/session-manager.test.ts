@@ -75,7 +75,7 @@ describe('SessionManager with InMemorySessionStore', () => {
 
   beforeEach(() => {
     const store = new InMemorySessionStore();
-    manager = new SessionManager(store);
+    manager = new SessionManager({ store });
   });
 
   afterEach(async () => {
@@ -87,31 +87,9 @@ describe('SessionManager with InMemorySessionStore', () => {
     ok(transport);
   });
 
-  test('should attach a transport to existing session', async () => {
-    const sessionId = 'test-session-id';
-    const transport = await manager.attachTransport(sessionId);
-
-    ok(transport);
-    // Note: sessionId is set during onsessioninitialized callback, which happens when handleRequest is called
-    // For now, verify the transport is stored correctly
-    const retrievedTransport = manager.getTransport(sessionId);
-    strictEqual(retrievedTransport, transport);
-  });
-
   test('should return undefined for non-existent session', async () => {
     const session = await manager.getSession('non-existent');
     strictEqual(session, undefined);
-  });
-
-  test('should destroy a session without transport', async () => {
-    const sessionId = 'test-session-id';
-    await manager.attachTransport(sessionId);
-
-    strictEqual(await manager.getSessionsCount(), 1);
-
-    await manager.destroySession(sessionId);
-
-    strictEqual(await manager.getSessionsCount(), 0);
   });
 
   test('should not emit event when destroying non-existent session', async () => {
@@ -128,22 +106,33 @@ describe('SessionManager with InMemorySessionStore', () => {
   test('should get sessions count', async () => {
     strictEqual(await manager.getSessionsCount(), 0);
 
-    await manager.attachTransport('session-1');
+    manager.createTransport();
     strictEqual(await manager.getSessionsCount(), 1);
 
-    await manager.attachTransport('session-2');
+    manager.createTransport();
     strictEqual(await manager.getSessionsCount(), 2);
   });
 
   test('should destroy all sessions', async () => {
-    await manager.attachTransport('session-1');
-    await manager.attachTransport('session-2');
+    manager.createTransport();
+    manager.createTransport();
 
     strictEqual(await manager.getSessionsCount(), 2);
 
     await manager.destroyAllSessions();
 
     strictEqual(await manager.getSessionsCount(), 0);
+  });
+
+  test('should handle custom transport options', async () => {
+    const sessionId = 'custom-session-id';
+    manager.setTransportOptions({
+      sessionIdGenerator: () => sessionId
+    });
+
+    manager.createTransport();
+
+    strictEqual((manager as unknown as any).transports.size, 1);
   });
 });
 
@@ -259,7 +248,7 @@ describe('SessionManager with RedisSessionStore', () => {
       port: 6379,
       lazyConnect: true
     });
-    manager = new SessionManager(store);
+    manager = new SessionManager({ store });
   });
 
   afterEach(async () => {
@@ -270,17 +259,6 @@ describe('SessionManager with RedisSessionStore', () => {
   test('should create a new transport with session', () => {
     const transport = manager.createTransport();
     ok(transport);
-  });
-
-  test('should attach a transport to existing session', async () => {
-    const sessionId = 'test-session-id';
-    const transport = await manager.attachTransport(sessionId);
-
-    ok(transport);
-    // Note: sessionId is set during onsessioninitialized callback, which happens when handleRequest is called
-    // For now, verify the transport is stored correctly
-    const retrievedTransport = manager.getTransport(sessionId);
-    strictEqual(retrievedTransport, transport);
   });
 
   test('should get session info from store', async () => {
@@ -304,23 +282,6 @@ describe('SessionManager with RedisSessionStore', () => {
 
     const session = await manager.getSession('non-existent');
     strictEqual(session, undefined);
-  });
-
-  test('should destroy a session with transport', async () => {
-    const redis = (store as any).redis;
-    redis.del = async () => 1;
-
-    let eventFired = false;
-    manager.on('sessionDestroyed', (sessionId) => {
-      strictEqual(sessionId, 'test-session-123');
-      eventFired = true;
-    });
-
-    await manager.attachTransport('test-session-123');
-    await manager.destroySession('test-session-123');
-
-    strictEqual(eventFired, true);
-    strictEqual(manager.getTransport('test-session-123'), undefined);
   });
 
   test('should emit transportError event', () => {
