@@ -26,7 +26,9 @@ jobs:
       - name: Create Release Pull Request
         uses: changesets/action@v1
         with:
-          version: npm run version
-          publish: npm run release
+          title: 'chore(release): new version'
+          commit: 'chore(release): new version'
+          version: 'npm run version'
+          publish: 'npm run release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
