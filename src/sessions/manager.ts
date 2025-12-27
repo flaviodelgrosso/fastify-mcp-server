@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import EventEmitter from 'node:events';
 
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import {
+  StreamableHTTPServerTransport,
+  type StreamableHTTPServerTransportOptions
+} from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
 import type { SessionData, SessionStore } from '../types.ts';
 
@@ -11,48 +14,52 @@ type SessionsEvents = {
   transportError: [string, Error];
 };
 
+type SessionManagerOptions = {
+  store: SessionStore;
+  transportOptions?: StreamableHTTPServerTransportOptions;
+};
+
 /**
  * Manages MCP sessions using a pluggable SessionStore for persistence
  */
 export class SessionManager extends EventEmitter<SessionsEvents> {
   private transports: Map<string, StreamableHTTPServerTransport> = new Map();
   private store: SessionStore;
+  private transportOptions?: StreamableHTTPServerTransportOptions;
 
-  constructor (store: SessionStore) {
+  constructor (options: SessionManagerOptions) {
     super({ captureRejections: true });
-    this.store = store;
+    this.store = options.store;
+    this.transportOptions = options.transportOptions;
   }
 
   /**
    * Creates a new transport and session
    */
   public createTransport (): StreamableHTTPServerTransport {
-    const sessionId = randomUUID();
+    const sessionId = this.transportOptions?.sessionIdGenerator?.() ?? randomUUID();
 
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => sessionId,
       onsessioninitialized: async (sessionId) => {
-        this.transports.set(sessionId, transport);
         await this.saveSession(sessionId);
-        this.emit('sessionCreated', sessionId);
+      },
+      ...this.transportOptions
+    });
+
+    /* c8 ignore next 4 */
+    transport.onclose = () => {
+      if (transport.sessionId) {
+        this.destroySession(transport.sessionId);
       }
-    });
+    };
 
-    this.setupTransportHandlers(transport, sessionId);
-
-    return transport;
-  }
-
-  /**
-   * Attaches a transport to an existing session
-   */
-  public async attachTransport (sessionId: string): Promise<StreamableHTTPServerTransport> {
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined
-    });
+    /* c8 ignore next 3 */
+    transport.onerror = (error) => {
+      this.emit('transportError', sessionId, error);
+    };
 
     this.transports.set(sessionId, transport);
-    this.setupTransportHandlers(transport, sessionId);
 
     return transport;
   }
@@ -107,23 +114,8 @@ export class SessionManager extends EventEmitter<SessionsEvents> {
       sessionId,
       createdAt: Date.now()
     };
+
     await this.store.save(sessionData);
-  }
-
-  /**
-   * Sets up common transport event handlers (onclose and onerror)
-   */
-  private setupTransportHandlers (transport: StreamableHTTPServerTransport, sessionId: string): void {
-    /* c8 ignore next 4 */
-    transport.onclose = () => {
-      if (transport.sessionId) {
-        this.destroySession(transport.sessionId);
-      }
-    };
-
-    /* c8 ignore next 3 */
-    transport.onerror = (error) => {
-      this.emit('transportError', sessionId, error);
-    };
+    this.emit('sessionCreated', sessionId);
   }
 }

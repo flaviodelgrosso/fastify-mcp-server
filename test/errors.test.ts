@@ -50,7 +50,7 @@ describe('Error Handling', () => {
       }
     });
 
-    strictEqual(response.statusCode, 400);
+    strictEqual(response.statusCode, 404);
     const json = response.json();
     strictEqual(json.jsonrpc, '2.0');
     strictEqual(json.error.code, -32003);

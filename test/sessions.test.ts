@@ -33,7 +33,7 @@ describe('Sessions', async () => {
     strictEqual(response.statusCode, 400);
     deepStrictEqual(response.json(), {
       jsonrpc: '2.0',
-      error: { code: -32600, message: 'MCP error -32600: Invalid request method for existing session' },
+      error: { code: -32600, message: 'MCP error -32600: Invalid request' },
       id: null
     });
   });
@@ -83,7 +83,7 @@ describe('Sessions', async () => {
       }
     });
 
-    strictEqual(response.statusCode, 400);
+    strictEqual(response.statusCode, 404);
     deepStrictEqual(response.json(), {
       jsonrpc: '2.0',
       error: { code: -32003, message: 'MCP error -32003: Session not found' },
@@ -150,7 +150,7 @@ describe('Sessions', async () => {
     strictEqual(response.statusCode, 400);
     deepStrictEqual(response.json(), {
       jsonrpc: '2.0',
-      error: { code: -32600, message: 'MCP error -32600: Invalid request method for existing session' },
+      error: { code: -32600, message: 'MCP error -32600: Invalid request' },
       id: null
     });
   });
@@ -166,7 +166,7 @@ describe('Sessions', async () => {
       }
     });
 
-    strictEqual(response.statusCode, 400);
+    strictEqual(response.statusCode, 404);
   });
 
   test('should handle a GET request with a session ID for an existing session', async () => {
@@ -272,7 +272,78 @@ describe('Sessions', async () => {
       }
     });
 
-    strictEqual(deleteResponse.statusCode, 400);
+    strictEqual(deleteResponse.statusCode, 404);
     strictEqual((await mcp.getStats()).activeSessions, 0);
+  });
+
+  test('should handle request when session exists in store but transport is missing', async () => {
+    // Create a session and initialize it
+    const initResponse = await app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream'
+      },
+      body: {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-03-26',
+          capabilities: {},
+          clientInfo: {
+            name: 'ExampleClient',
+            version: '1.0.0'
+          }
+        }
+      }
+    });
+
+    const sessionId = initResponse.headers['mcp-session-id'] as string;
+    ok(sessionId);
+
+    // Manually remove the transport while keeping the session in the store
+    // This simulates a scenario like server restart where persistent data exists but in-memory state is lost
+    const sessionManager = mcp.getSessionManager();
+    const transport = sessionManager.getTransport(sessionId);
+    ok(transport);
+
+    // @ts-expect-error - Accessing private property for testing
+    sessionManager.transports.delete(sessionId);
+
+    // Verify the session still exists in the store
+    const sessionData = await sessionManager.getSession(sessionId);
+    ok(sessionData);
+
+    // Now make a request with the session ID
+    // The preHandler will detect session exists but transport is missing (server restart scenario)
+    // It should clean up the stale session and return 404 to tell client to re-initialize
+    const response = await app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        'mcp-session-id': sessionId
+      },
+      body: {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'ping',
+        params: {}
+      }
+    });
+
+    strictEqual(response.statusCode, 404);
+    deepStrictEqual(response.json(), {
+      jsonrpc: '2.0',
+      error: { code: -32003, message: 'MCP error -32003: Session not found' },
+      id: null
+    });
+
+    // Verify the stale session was cleaned up from the store
+    const cleanedSession = await sessionManager.getSession(sessionId);
+    strictEqual(cleanedSession, undefined);
   });
 });

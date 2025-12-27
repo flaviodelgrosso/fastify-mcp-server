@@ -52,9 +52,8 @@ async function mcpRoutesPlugin (fastify: FastifyInstance, options: McpRoutesOpti
       if (sessionId) {
         transport = sessionManager.getTransport(sessionId);
         if (!transport) {
-          transport = await sessionManager.attachTransport(sessionId);
-          const mcpServer = mcp.create();
-          await mcpServer.connect(transport);
+          await sessionManager.destroySession(sessionId);
+          throw new SessionNotFoundError();
         }
       } else {
         // Create a new session and connect a server for initialize requests

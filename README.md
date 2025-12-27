@@ -48,6 +48,10 @@ A robust Fastify plugin that provides seamless integration with the Model Contex
   - [Well-Known OAuth Metadata Routes](#well-known-oauth-metadata-routes)
     - [Registering Well-Known Routes](#registering-well-known-routes)
     - [Endpoints](#endpoints)
+  - [Custom Transport Options](#custom-transport-options)
+    - [Available Options](#available-options)
+    - [Use Cases](#use-cases)
+    - [Example: Custom Session ID with Prefix](#example-custom-session-id-with-prefix)
   - [Development](#development)
     - [Setup](#setup)
     - [Scripts](#scripts)
@@ -85,6 +89,7 @@ The Model Context Protocol (MCP) is an open standard that enables AI assistants 
 - ✅ **Graceful Shutdown**: Proper cleanup of all sessions during server shutdown
 - ✅ **Configurable Endpoints**: Customizable MCP endpoint paths
 - ✅ **Custom Session Stores**: Implement your own session storage backend
+- ✅ **Custom Transport Options**: Configure transport behavior with custom session ID generation and callbacks
 - ✅ **TypeScript Support**: Full type safety and IntelliSense support
 
 ## Installation
@@ -169,6 +174,7 @@ type FastifyMcpServerOptions = {
     };
   };
   sessionStore?: SessionStore; // Optional custom session store implementation
+  transportOptions?: StreamableHTTPServerTransportOptions; // Optional transport configuration options
 };
 ```
 
@@ -531,6 +537,51 @@ await app.register(FastifyMcpServer, {
 - `GET /.well-known/oauth-protected-resource` — Returns the OAuth protected resource metadata.
 
 These endpoints are registered only if the corresponding metadata options are provided.
+
+## Custom Transport Options
+
+You can customize the behavior of the underlying `StreamableHTTPServerTransport` by providing `transportOptions` when registering the plugin. This allows you to configure advanced transport features such as custom session ID generation and transport lifecycle callbacks.
+
+### Available Options
+
+```typescript
+import type { StreamableHTTPServerTransportOptions } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+
+await app.register(FastifyMcpServer, {
+  createMcpServer,
+  transportOptions: {
+    // Custom session ID generator function
+    sessionIdGenerator: () => {
+      // Return your custom session ID
+      return `custom-${Date.now()}-${Math.random()}`;
+    },
+    // Callback invoked when session is initialized
+    onsessioninitialized: async (sessionId) => {
+      console.log(`Session ${sessionId} initialized`);
+    },
+    // Additional StreamableHTTPServerTransport options...
+  }
+});
+```
+
+### Use Cases
+
+- **Custom Session IDs**: Generate session IDs that match your existing ID format or include specific metadata
+- **Session Initialization Hooks**: Perform custom logic when sessions are created (e.g., logging, metrics, notifications)
+- **Transport Configuration**: Fine-tune transport behavior for specific deployment requirements
+
+### Example: Custom Session ID with Prefix
+
+```typescript
+await app.register(FastifyMcpServer, {
+  createMcpServer,
+  transportOptions: {
+    sessionIdGenerator: () => {
+      return `mcp-prod-${randomUUID()}`;
+    }
+  }
+});
+```
 
 ## Development
 

@@ -22,7 +22,10 @@ export class FastifyMcpServer {
 
     // Initialize session manager with provided or default session store
     const sessionStore = options.sessionStore || new InMemorySessionStore();
-    this.sessionManager = new SessionManager(sessionStore);
+    this.sessionManager = new SessionManager({
+      store: sessionStore,
+      transportOptions: options.transportOptions
+    });
 
     // Register OAuth metadata routes if oauth2 config is provided
     const oauth2 = options.authorization?.oauth2;

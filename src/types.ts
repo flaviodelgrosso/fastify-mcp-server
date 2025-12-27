@@ -1,5 +1,6 @@
 import type { BearerAuthMiddlewareOptions } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { StreamableHTTPServerTransportOptions } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { OAuthProtectedResourceMetadata, OAuthMetadata } from '@modelcontextprotocol/sdk/shared/auth.js';
 
 /**
@@ -85,4 +86,8 @@ export type FastifyMcpServerOptions = {
    * If not provided, an in-memory session store will be used
    */
   sessionStore?: SessionStore;
+  /**
+   * Options for the StreamableHTTPServerTransport used for MCP sessions
+   */
+  transportOptions?: StreamableHTTPServerTransportOptions;
 };
