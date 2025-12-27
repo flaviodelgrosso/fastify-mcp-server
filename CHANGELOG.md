@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.7.0
+
+### Minor Changes
+
+- 14ed3d5: feat: add customizable transport options
+
 ## 0.6.0
 
 ### Minor Changes
