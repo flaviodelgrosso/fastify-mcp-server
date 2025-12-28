@@ -30,7 +30,7 @@ export class FastifyMcpServer {
     // Register OAuth metadata routes if oauth2 config is provided
     const oauth2 = options.authorization?.oauth2;
     if (oauth2) {
-      this.fastify.register(wellKnownRoutes, { oauth2 });
+      this.fastify.register(wellKnownRoutes, oauth2);
     }
 
     // Register MCP routes

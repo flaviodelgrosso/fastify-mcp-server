@@ -2,11 +2,11 @@ import { OAuthMetadataSchema, OAuthProtectedResourceMetadataSchema } from '@mode
 import fp from 'fastify-plugin';
 import { z } from 'zod';
 
-import type { AuthorizationOptions } from '../types.ts';
+import type { OAuth2AuthorizationOptions } from '../types.ts';
 import type { FastifyInstance } from 'fastify';
 
-async function wellKnownRoutesPlugin (app: FastifyInstance, options: Pick<Required<AuthorizationOptions>, 'oauth2'>) {
-  const { authorizationServerOAuthMetadata, protectedResourceOAuthMetadata } = options.oauth2;
+async function wellKnownRoutesPlugin (app: FastifyInstance, options: OAuth2AuthorizationOptions) {
+  const { authorizationServerOAuthMetadata, protectedResourceOAuthMetadata } = options;
 
   app.route({
     method: 'GET',
