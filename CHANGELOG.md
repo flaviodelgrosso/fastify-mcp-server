@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.7.1
+
+### Patch Changes
+
+- ecf1780: fix: make bearer auth option required and export `OAuth2AuthorizationOptions` type
+
 ## 0.7.0
 
 ### Minor Changes
