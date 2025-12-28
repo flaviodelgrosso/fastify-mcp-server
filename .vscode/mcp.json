@@ -1,0 +1,14 @@
+{
+    "servers": {
+        "fastify-mcp-server": {
+            "type": "http",
+            "url": "http://127.0.0.1:9080/mcp",
+            "dev": {
+                "watch": "src/**/*.ts",
+                "debug": {
+                    "type": "node"
+                }
+            },
+        }
+    }
+}
