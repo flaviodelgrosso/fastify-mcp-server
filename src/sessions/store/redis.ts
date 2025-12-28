@@ -1,4 +1,4 @@
-import { Redis, type RedisOptions } from 'ioredis';
+import { Redis } from 'ioredis';
 
 import type { SessionData, SessionStore } from '../../types.ts';
 
@@ -10,8 +10,8 @@ export class RedisSessionStore implements SessionStore {
   private redis: Redis;
   private ttl: number;
 
-  constructor (options: RedisOptions, ttl: number = 3600) {
-    this.redis = new Redis(options);
+  constructor (redis: Redis, ttl: number = 3600) {
+    this.redis = redis;
     this.ttl = ttl;
   }
 
@@ -46,13 +46,6 @@ export class RedisSessionStore implements SessionStore {
     if (keys.length > 0) {
       await this.redis.del(...keys);
     }
-  }
-
-  /**
-   * Close the Redis connection
-   */
-  public async close (): Promise<void> {
-    await this.redis.quit();
   }
 
   /**

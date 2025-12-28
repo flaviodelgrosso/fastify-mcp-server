@@ -320,12 +320,7 @@ For production deployments or distributed systems, use the Redis session store:
 ```typescript
 import { RedisSessionStore } from 'fastify-mcp-server';
 
-const redisStore = new RedisSessionStore({
-  host: 'localhost',
-  port: 6379,
-  db: 0
-  // Additional ioredis options...
-});
+const redisStore = new RedisSessionStore(redisClient); // Pass your Redis client instance
 
 await app.register(FastifyMcpServer, {
   createMcpServer,

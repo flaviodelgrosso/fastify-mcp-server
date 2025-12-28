@@ -1,4 +1,4 @@
-import { Redis, type RedisOptions } from 'ioredis';
+import { Redis } from 'ioredis';
 
 import type { EventStore } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
@@ -6,8 +6,8 @@ import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 export class RedisEventStore implements EventStore {
   private redis: Redis;
 
-  constructor (options: RedisOptions) {
-    this.redis = new Redis(options);
+  constructor (redis: Redis) {
+    this.redis = redis;
   }
 
   /**

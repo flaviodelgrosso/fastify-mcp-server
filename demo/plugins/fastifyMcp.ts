@@ -1,6 +1,7 @@
 import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
 import { InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import fp from 'fastify-plugin';
+import { Redis } from 'ioredis';
 
 import FastifyMcpStreamableHttp, { getMcpDecorator, RedisSessionStore } from '../../src/index.ts';
 import { RedisEventStore } from '../event-store.ts';
@@ -23,16 +24,16 @@ class BearerTokenVerifier implements OAuthTokenVerifier {
   }
 }
 
-const redisOptions = {
+const withRedis = process.argv.includes('--redis');
+
+const redis = new Redis({
   host: 'localhost',
   port: 6379,
   db: 0
-};
+});
 
-const withRedis = process.argv.includes('--redis');
-
-const sessionStore = withRedis ? new RedisSessionStore(redisOptions) : undefined; // uses InMemorySessionStore by default
-const eventStore = withRedis ? new RedisEventStore(redisOptions) : new InMemoryEventStore();
+const sessionStore = withRedis ? new RedisSessionStore(redis) : undefined; // uses InMemorySessionStore by default
+const eventStore = withRedis ? new RedisEventStore(redis) : new InMemoryEventStore();
 
 const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpServerOptions> = async (app) => {
   await app.register(FastifyMcpStreamableHttp, {
@@ -76,6 +77,12 @@ const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpServerOptions> = async (app
 
   sessionManager.on('transportError', (sessionId, error) => {
     app.log.error({ sessionId, error }, 'MCP transport error in session');
+  });
+
+  app.addHook('onClose', async () => {
+    if (withRedis) {
+      await redis.quit();
+    }
   });
 };
 

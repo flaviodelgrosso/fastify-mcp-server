@@ -1,9 +1,10 @@
 import { strictEqual, ok } from 'node:assert';
 import { describe, test } from 'node:test';
 
+import { testWithRedis } from './redis-utils.ts';
 import { buildApp } from './setupTests.ts';
 
-import { getMcpDecorator } from '../src/index.ts';
+import { getMcpDecorator, RedisSessionStore } from '../src/index.ts';
 
 describe('Session Events', () => {
   test('should emit sessionCreated event when session is initialized', async () => {
@@ -132,16 +133,10 @@ describe('Session Events', () => {
 });
 
 describe('Redis Session Events', () => {
-  test('should emit sessionCreated event with Redis session store', async () => {
-    const { RedisSessionStore } = await import('../src/sessions/store/redis.ts');
-    const redisStore = new RedisSessionStore({
-      host: 'localhost',
-      port: 6379,
-      lazyConnect: true
-    });
+  testWithRedis('should emit sessionCreated event with Redis session store', async (redis) => {
+    const redisStore = new RedisSessionStore(redis);
 
     // Mock Redis methods
-    const redis = (redisStore as any).redis;
     redis.hset = async () => 1;
     redis.expire = async () => 1;
     redis.hgetall = async (key: string) => {
@@ -189,6 +184,5 @@ describe('Redis Session Events', () => {
     const sessionId = await eventPromise;
     ok(sessionId);
     await sessionManager.destroySession(sessionId);
-    await redisStore.close();
   });
 });

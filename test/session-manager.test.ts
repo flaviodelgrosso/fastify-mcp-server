@@ -1,6 +1,7 @@
 import { strictEqual, ok } from 'node:assert';
 import { afterEach, beforeEach, describe, test } from 'node:test';
 
+import { testWithRedis } from './redis-utils.ts';
 import { buildApp } from './setupTests.ts';
 
 import { SessionManager } from '../src/sessions/manager.ts';
@@ -163,26 +164,12 @@ describe('SessionManager with InMemorySessionStore', () => {
 });
 
 describe('RedisSessionStore', () => {
-  let store: RedisSessionStore;
+  testWithRedis('should save and load a session', async (redis) => {
+    const store = new RedisSessionStore(redis);
 
-  beforeEach(() => {
-    store = new RedisSessionStore({
-      host: 'localhost',
-      port: 6379,
-      lazyConnect: true
-    });
-  });
-
-  afterEach(async () => {
-    await store.deleteAll();
-    await store.close();
-  });
-
-  test('should save and load a session', async () => {
-    // Mock Redis client
-    const redis = (store as any).redis;
     redis.hset = async () => 1;
     redis.expire = async () => 1;
+    // @ts-expect-error
     redis.hgetall = async (key: string) => {
       if (key === 'session:test-session-123') {
         return { sessionId: 'test-session-123', createdAt: '1234567890' };
@@ -203,16 +190,16 @@ describe('RedisSessionStore', () => {
     strictEqual(loaded.createdAt, sessionData.createdAt);
   });
 
-  test('should return undefined for non-existent session', async () => {
-    const redis = (store as any).redis;
+  testWithRedis('should return undefined for non-existent session', async (redis) => {
+    const store = new RedisSessionStore(redis);
     redis.hgetall = async () => ({});
 
     const session = await store.load('non-existent');
     strictEqual(session, undefined);
   });
 
-  test('should delete a session', async () => {
-    const redis = (store as any).redis;
+  testWithRedis('should delete a session', async (redis) => {
+    const store = new RedisSessionStore(redis);
     redis.del = async () => 1;
 
     await store.delete('test-session-123');
@@ -220,8 +207,8 @@ describe('RedisSessionStore', () => {
     ok(true);
   });
 
-  test('should get all session IDs', async () => {
-    const redis = (store as any).redis;
+  testWithRedis('should get all session IDs', async (redis) => {
+    const store = new RedisSessionStore(redis);
     // Mock scan to return sessions in one batch
     redis.scan = async (cursor: string) => {
       if (cursor === '0') {
@@ -237,14 +224,16 @@ describe('RedisSessionStore', () => {
     strictEqual(ids[2], '3');
   });
 
-  test('should delete all sessions', async () => {
-    const redis = (store as any).redis;
+  testWithRedis('should delete all sessions', async (redis) => {
+    const store = new RedisSessionStore(redis);
     redis.scan = async (cursor: string) => {
       if (cursor === '0') {
         return ['0', ['session:1', 'session:2']];
       }
       return ['0', []];
     };
+
+    // @ts-expect-error
     redis.del = async (...keys: string[]) => keys.length;
 
     await store.deleteAll();
@@ -252,8 +241,8 @@ describe('RedisSessionStore', () => {
     ok(true);
   });
 
-  test('should handle deleteAll with no sessions', async () => {
-    const redis = (store as any).redis;
+  testWithRedis('should handle deleteAll with no sessions', async (redis) => {
+    const store = new RedisSessionStore(redis);
     redis.scan = async (_cursor: string) => {
       return ['0', []];
     };
@@ -265,30 +254,17 @@ describe('RedisSessionStore', () => {
 });
 
 describe('SessionManager with RedisSessionStore', () => {
-  let manager: SessionManager;
-  let store: RedisSessionStore;
-
-  beforeEach(() => {
-    store = new RedisSessionStore({
-      host: 'localhost',
-      port: 6379,
-      lazyConnect: true
-    });
-    manager = new SessionManager({ store });
-  });
-
-  afterEach(async () => {
-    await manager.destroyAllSessions();
-    await store.close();
-  });
-
-  test('should create a new transport with session', () => {
+  testWithRedis('should create a new transport with session', async (redis) => {
+    const store = new RedisSessionStore(redis);
+    const manager = new SessionManager({ store });
     const transport = manager.createTransport();
     ok(transport);
   });
 
-  test('should get session info from store', async () => {
-    const redis = (store as any).redis;
+  testWithRedis('should get session info from store', async (redis) => {
+    const store = new RedisSessionStore(redis);
+    const manager = new SessionManager({ store });
+    // @ts-expect-error
     redis.hgetall = async (key: string) => {
       if (key === 'session:test-session-123') {
         return { sessionId: 'test-session-123', createdAt: '1234567890' };
@@ -302,16 +278,20 @@ describe('SessionManager with RedisSessionStore', () => {
     strictEqual(session.createdAt, 1234567890);
   });
 
-  test('should return undefined for non-existent session', async () => {
-    const redis = (store as any).redis;
+  testWithRedis('should return undefined for non-existent session', async (redis) => {
+    const store = new RedisSessionStore(redis);
+    const manager = new SessionManager({ store });
     redis.hgetall = async () => ({});
 
     const session = await manager.getSession('non-existent');
     strictEqual(session, undefined);
   });
 
-  test('should emit transportError event', () => {
+  testWithRedis('should emit transportError event', async (redis) => {
+    const store = new RedisSessionStore(redis);
+    const manager = new SessionManager({ store });
     let errorEmitted = false;
+
     manager.on('transportError', (sessionId, error) => {
       ok(sessionId);
       ok(error instanceof Error);
@@ -320,9 +300,7 @@ describe('SessionManager with RedisSessionStore', () => {
     });
 
     const transport = manager.createTransport();
-    const onerror = (transport as any).onerror;
-
-    onerror(new Error('Test error'));
+    transport.onerror?.(new Error('Test error'));
 
     ok(errorEmitted);
   });

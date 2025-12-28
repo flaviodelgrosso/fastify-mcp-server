@@ -1,6 +1,7 @@
 import { strictEqual, ok } from 'node:assert';
 import { describe, test } from 'node:test';
 
+import { testWithRedis } from './redis-utils.ts';
 import { buildApp } from './setupTests.ts';
 
 import { getMcpDecorator } from '../src/index.ts';
@@ -42,13 +43,9 @@ describe('MCP Routes - Edge Cases', () => {
 });
 
 describe('Server Configuration', () => {
-  test('should use custom session store when provided', async () => {
+  testWithRedis('should use custom session store when provided', async (redis) => {
     const { RedisSessionStore } = await import('../src/sessions/store/redis.ts');
-    const redisStore = new RedisSessionStore({
-      host: 'localhost',
-      port: 6379,
-      lazyConnect: true
-    });
+    const redisStore = new RedisSessionStore(redis);
 
     const app = await buildApp({
       sessionStore: redisStore
@@ -62,7 +59,6 @@ describe('Server Configuration', () => {
 
     // Cleanup
     await sessionManager.destroyAllSessions();
-    await redisStore.close();
   });
 
   test('should use InMemorySessionStore by default', async () => {
@@ -76,6 +72,7 @@ describe('Server Configuration', () => {
 
   test('should register OAuth2 routes when oauth2 config is provided', async () => {
     const app = await buildApp({
+      // @ts-expect-error Testing config
       authorization: {
         oauth2: {
           authorizationServerOAuthMetadata: {
