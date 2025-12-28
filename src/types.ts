@@ -47,25 +47,27 @@ export interface SessionStore {
   deleteAll (): Promise<void> | void;
 }
 
+export type OAuth2AuthorizationOptions = {
+  /**
+   * These will be used to generate the .well-known `/oauth-authorization-server` endpoint.
+   */
+  authorizationServerOAuthMetadata: OAuthMetadata;
+  /**
+   * This will be used to generate the .well-known `/oauth-protected-resource` endpoint.
+   */
+  protectedResourceOAuthMetadata: OAuthProtectedResourceMetadata;
+};
+
 export type AuthorizationOptions = {
   /**
    * Options for the Bearer token middleware.
    * @see {@link https://github.com/modelcontextprotocol/typescript-sdk/blob/main/src/server/auth/middleware/bearerAuth.ts | BearerAuthMiddlewareOptions}
    */
-  bearerMiddlewareOptions?: BearerAuthMiddlewareOptions;
+  bearerMiddlewareOptions: BearerAuthMiddlewareOptions;
   /**
    * OAuth metadata for the authorization server and protected resources.
    */
-  oauth2?: {
-    /**
-     * These will be used to generate the .well-known `/oauth-authorization-server` endpoint.
-     */
-    authorizationServerOAuthMetadata: OAuthMetadata;
-    /**
-     * This will be used to generate the .well-known `/oauth-protected-resource` endpoint.
-     */
-    protectedResourceOAuthMetadata: OAuthProtectedResourceMetadata;
-  };
+  oauth2?: OAuth2AuthorizationOptions;
 };
 
 export type FastifyMcpServerOptions = {

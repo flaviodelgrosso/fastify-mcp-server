@@ -162,7 +162,7 @@ type FastifyMcpServerOptions = {
   endpoint?: string; // Custom endpoint path (default: '/mcp')
   authorization?: {
     // Authorization configuration
-    bearerMiddlewareOptions?: {
+    bearerMiddlewareOptions: {
       verifier: OAuthTokenVerifier; // Custom verifier for Bearer tokens
       requiredScopes?: string[]; // Optional scopes required for access
       resourceMetadataUrl?: string; // Optional URL for resource metadata
@@ -558,7 +558,7 @@ await app.register(FastifyMcpServer, {
     // Callback invoked when session is initialized
     onsessioninitialized: async (sessionId) => {
       console.log(`Session ${sessionId} initialized`);
-    },
+    }
     // Additional StreamableHTTPServerTransport options...
   }
 });
