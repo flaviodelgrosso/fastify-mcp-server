@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.7.2
+
+### Patch Changes
+
+- 2a80f7c: fix: use redis client instead of options to session and event stores
+
 ## 0.7.1
 
 ### Patch Changes
