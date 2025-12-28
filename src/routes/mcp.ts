@@ -7,13 +7,13 @@ import { InvalidRequestError, SessionNotFoundError, setMcpErrorHandler } from '.
 import { getMcpDecorator } from '../index.ts';
 
 import type { SessionManager } from '../sessions/manager.ts';
-import type { AuthorizationOptions } from '../types.ts';
+import type { BearerAuthMiddlewareOptions } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import type { FastifyInstance } from 'fastify';
 
 type McpRoutesOptions = {
   endpoint: string;
   sessionManager: SessionManager;
-  bearerMiddlewareOptions: AuthorizationOptions['bearerMiddlewareOptions'];
+  bearerMiddlewareOptions: BearerAuthMiddlewareOptions | undefined;
 };
 
 const MCP_SESSION_ID_HEADER = 'mcp-session-id';
