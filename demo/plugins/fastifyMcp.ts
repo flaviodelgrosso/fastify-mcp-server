@@ -56,7 +56,7 @@ const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpServerOptions> = async (app
           response_types_supported: ['code']
         },
         protectedResourceOAuthMetadata: {
-          resource: 'http://127.0.0.1:9080/.well-known/oauth-protected-resource',
+          resource: 'http://127.0.0.1:9080',
           scopes_supported: ['read:data', 'write:data'],
           token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post']
         }
