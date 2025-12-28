@@ -1,22 +1,16 @@
 import { test } from 'node:test';
 
-import { Redis } from 'ioredis';
+import { Redis, type RedisOptions } from 'ioredis';
 
 import type { TestOptions, TestContext } from 'node:test';
 
-export interface RedisTestConfig {
-  host: string;
-  port: number;
-  db: number;
-}
-
-export const defaultRedisConfig: RedisTestConfig = {
+export const defaultRedisConfig: RedisOptions = {
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379', 10),
   db: parseInt(process.env.REDIS_DB || '1', 10) // Use DB 1 for tests
 };
 
-export async function createTestRedis (config: RedisTestConfig = defaultRedisConfig): Promise<Redis> {
+export async function createTestRedis (config: RedisOptions = defaultRedisConfig): Promise<Redis> {
   const redis = new Redis({
     host: config.host,
     port: config.port,
