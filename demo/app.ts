@@ -12,6 +12,12 @@ export async function buildApp (options?: FastifyServerOptions) {
     dirNameRoutePrefix: false
   });
 
+  // Auto-load routes
+  await server.register(AutoLoad, {
+    dir: path.join(import.meta.dirname, 'routes'),
+    dirNameRoutePrefix: false
+  });
+
   // Set error handler
   server.setErrorHandler(function (err, request, reply) {
     if (err instanceof Fastify.errorCodes.FST_ERR_BAD_STATUS_CODE) {

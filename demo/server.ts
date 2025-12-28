@@ -4,7 +4,6 @@ import { buildApp } from './app.ts';
 
 async function startServer () {
   const app = await buildApp({
-    disableRequestLogging: true,
     logger: {
       level: 'debug',
       transport: {

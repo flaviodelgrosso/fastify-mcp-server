@@ -1,4 +1,5 @@
 import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
+import { InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import fp from 'fastify-plugin';
 
 import FastifyMcpStreamableHttp, { getMcpDecorator, RedisSessionStore } from '../../src/index.ts';
@@ -13,7 +14,10 @@ import type { FastifyPluginAsync } from 'fastify';
 class BearerTokenVerifier implements OAuthTokenVerifier {
   verifyAccessToken (token: string): Promise<AuthInfo> {
     // Just a mock implementation for demonstration purposes.
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      if (token !== '1234567890') {
+        return reject(new InvalidTokenError('Invalid access token'));
+      }
       resolve({ extra: { userId: '1234567890' }, token, clientId: 'example-client', scopes: [] });
     });
   }
@@ -51,7 +55,9 @@ const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpServerOptions> = async (app
           response_types_supported: ['code']
         },
         protectedResourceOAuthMetadata: {
-          resource: 'http://127.0.0.1:9080/.well-known/oauth-protected-resource'
+          resource: 'http://127.0.0.1:9080/.well-known/oauth-protected-resource',
+          scopes_supported: ['read:data', 'write:data'],
+          token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post']
         }
       }
     }
