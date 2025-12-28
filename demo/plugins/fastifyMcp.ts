@@ -44,14 +44,14 @@ const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpServerOptions> = async (app
       },
       oauth2: {
         authorizationServerOAuthMetadata: {
-          issuer: 'https://demo.fastify-mcp-server.org',
-          authorization_endpoint: 'https://demo.fastify-mcp-server.org/authorize',
-          token_endpoint: 'https://demo.fastify-mcp-server.org/token',
-          registration_endpoint: 'https://demo.fastify-mcp-server.org/register',
+          issuer: 'http://127.0.0.1:9080',
+          authorization_endpoint: 'http://127.0.0.1:9080/authorize',
+          token_endpoint: 'http://127.0.0.1:9080/token',
+          registration_endpoint: 'http://127.0.0.1:9080/register',
           response_types_supported: ['code']
         },
         protectedResourceOAuthMetadata: {
-          resource: 'https://demo.fastify-mcp-server.org/.well-known/oauth-protected-resource'
+          resource: 'http://127.0.0.1:9080/.well-known/oauth-protected-resource'
         }
       }
     }
