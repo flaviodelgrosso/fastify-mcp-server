@@ -72,7 +72,7 @@
     "neostandard": "^0.13.0",
     "pino-pretty": "^13.0.0",
     "prettier": "^3.6.2",
-    "prettier-plugin-space-before-function-paren": "^0.0.10",
+    "prettier-plugin-space-before-function-paren": "^0.1.0",
     "rimraf": "^6.0.1",
     "typescript": "^5.9.3"
   },
