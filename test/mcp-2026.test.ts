@@ -29,14 +29,18 @@ function metadata (clientName = 'test-client') {
 }
 
 function request (method: string, params: Record<string, unknown> = {}, name?: string) {
+  const headers: Record<string, string> = {
+    accept: 'application/json, text/event-stream',
+    'content-type': 'application/json',
+    'mcp-method': method,
+    'mcp-protocol-version': protocolVersion
+  };
+  if (name) {
+    headers['mcp-name'] = name;
+  }
+
   return {
-    headers: {
-      accept: 'application/json, text/event-stream',
-      'content-type': 'application/json',
-      'mcp-method': method,
-      ...(name ? { 'mcp-name': name } : {}),
-      'mcp-protocol-version': protocolVersion
-    },
+    headers,
     method: 'POST' as const,
     url: '/mcp',
     payload: {
@@ -197,9 +201,9 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
             },
             required: ['region'],
             type: 'object'
-          })
-        }, async ({ region }) => ({
-          content: [{ text: region, type: 'text' }]
+          } as never)
+        }, async () => ({
+          content: [{ text: 'regional', type: 'text' }]
         }));
         return server;
       }
@@ -227,7 +231,13 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
   });
 
   test('applies host origin guards and exposes request metrics', async () => {
-    const events: Array<{ method?: string; name?: string; protocolVersion?: string; statusCode: number }> = [];
+    const events: Array<{
+      durationMs: number;
+      method?: string;
+      name?: string;
+      protocolVersion?: string;
+      statusCode: number;
+    }> = [];
     const app = await buildApp({
       allowedHosts: ['api.example.test'],
       allowedOrigins: ['console.example.test'],
@@ -333,7 +343,7 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
       { name: 'sdk-v2-test', version: '1.0.0' },
       {
         supportedProtocolVersions: [protocolVersion],
-        versionNegotiation: { mode: 'pin' }
+        versionNegotiation: { mode: { pin: protocolVersion } }
       }
     );
     const transport = new StreamableHTTPClientTransport(new URL(`${address}/mcp`));
@@ -410,7 +420,7 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
         server.registerTool('wait', {}, async (context) => {
           resolveStarted?.();
           await new Promise<void>((resolve) => {
-            context.mcpReq.signal.addEventListener('abort', resolve, { once: true });
+            context.mcpReq.signal.addEventListener('abort', () => resolve(), { once: true });
           });
           resolveCancelled?.();
           return { content: [] };

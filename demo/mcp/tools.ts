@@ -19,8 +19,9 @@ export function registerTools (mcp: McpServer) {
 
   mcp.registerTool(
     'example-auth-tool',
-    { description: 'Demo to display the validated access token in authInfo object' },
-    ({ authInfo }) => {
+    { description: 'Demo requiring a validated bearer token' },
+    (context) => {
+      const authInfo = context.http?.authInfo;
       if (!authInfo?.token) {
         return {
           content: [
@@ -37,7 +38,7 @@ export function registerTools (mcp: McpServer) {
         content: [
           {
             type: 'text',
-            text: 'Authenticated tool called successfully! Your token is: ' + authInfo.token
+            text: `Authenticated tool called successfully for client ${authInfo.clientId}.`
           }
         ]
       };
