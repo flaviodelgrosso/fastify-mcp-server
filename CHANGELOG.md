@@ -1,4 +1,12 @@
-# CHANGELOG
+# Changelog
+
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+## [1.0.0](https://github.com/flaviodelgrosso/fastify-mcp-server/compare/v0.7.2...v1.0.0) (2026-08-21)
+
+### Major Changes (BREAKING CHANGES)
+
+- implement full spec alignment to MCP spec 2026-07-28 ([a379cf3](https://github.com/flaviodelgrosso/fastify-mcp-server/commit/a379cf346841e2bbf87b0ebb073507ee84443bb9))
 
 ## 0.7.2
 
