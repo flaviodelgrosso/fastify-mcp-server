@@ -48,14 +48,6 @@ async function mcpRoutesPlugin (fastify: FastifyInstance, options: McpRoutesOpti
           id: null
         });
       }
-
-      if (request.method === 'POST' && (!request.headers['mcp-protocol-version'] || !request.headers['mcp-method'])) {
-        return reply.status(400).send({
-          jsonrpc: '2.0',
-          error: { code: -32600, message: 'Missing required MCP routing header' },
-          id: null
-        });
-      }
     },
     preHandler: options.authorization
       ? (request, reply) => authenticateBearerRequest(request, reply, options.authorization!)

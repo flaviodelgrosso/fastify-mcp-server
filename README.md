@@ -32,6 +32,7 @@ The plugin provides a thin Fastify-native integration around the MCP TypeScript 
     - [Request-Scoped Context](#request-scoped-context)
     - [Application State](#application-state)
     - [Multi-Round-Trip Requests](#multi-round-trip-requests)
+    - [Subscriptions and Notifications](#subscriptions-and-notifications)
     - [Horizontal Scaling](#horizontal-scaling)
   - [Authentication: Bearer Token Support](#authentication-bearer-token-support)
     - [Enabling Bearer Token Authentication](#enabling-bearer-token-authentication)
@@ -168,49 +169,46 @@ Each MCP request is handled independently. A `tools/list` or `tools/call` reques
 ### Plugin Options
 
 ```typescript
+import type {
+  AuthMetadataOptions,
+  BearerAuthOptions,
+  CreateMcpHandlerOptions,
+  McpServerFactory
+} from '@modelcontextprotocol/server';
+
 type FastifyMcpServerOptions = {
-  /**
-   * Factory invoked to create the MCP server used for a request.
-   */
-  createMcpServer: () => McpServer | Promise<McpServer>;
-
-  /**
-   * MCP endpoint path. Defaults to '/mcp'.
-   */
+  createMcpServer: McpServerFactory;
   endpoint?: string;
-
-  /**
-   * Optional request-scoped authorization configuration.
-   */
+  allowedOrigins?: string[];
+  allowedHosts?: string[];
   authorization?: {
-    bearerMiddlewareOptions: {
-      verifier: OAuthTokenVerifier;
-      requiredScopes?: string[];
-      resourceMetadataUrl?: string;
-    };
-
-    oauth2?: {
-      authorizationServerOAuthMetadata?: OAuthMetadata;
-      protectedResourceOAuthMetadata?: OAuthProtectedResourceMetadata;
-    };
+    bearer?: BearerAuthOptions;
+    metadata?: AuthMetadataOptions;
   };
+  handlerOptions?: Omit<CreateMcpHandlerOptions, 'legacy'>;
+  onRequestComplete?: (event: McpRequestEvent) => void;
 };
 ```
+
+`handlerOptions` forwards the SDK's modern HTTP-handler options, including `bus`, `maxSubscriptions`, `keepAliveMs`, `responseMode`, and `onerror`. `legacy` is deliberately excluded from the public type. The plugin applies `legacy: 'reject'` after the forwarded options, so runtime object construction cannot override the modern-only policy.
 
 There are intentionally no MCP session-store, session-ID, or per-session transport options.
 
 ### MCP Decorator
 
-The Fastify decorator provides access to the configured MCP server factory for application-level integration:
+The decorator exposes request statistics and the SDK's typed notification publisher without exposing the complete HTTP handler or transport state:
 
 ```typescript
 import { getMcpDecorator } from 'fastify-mcp-server';
 
 const mcp = getMcpDecorator(app);
-const server = await mcp.create();
+console.log(mcp.getStats());
+
+mcp.notify.toolsChanged();
+mcp.notify.resourceUpdated('config://app');
 ```
 
-The decorator does not expose protocol sessions or transport state.
+`getStats()` returns `requestsTotal`, `inFlightRequests`, `errorsTotal`, and the configured `endpoint`. The `notify` facade also provides `promptsChanged()` and `resourcesChanged()`.
 
 ## HTTP Protocol
 
@@ -360,6 +358,40 @@ For multi-step flows, use `requestState` to carry an opaque continuation between
 
 Do not use an in-memory transport or protocol session to hold continuation state.
 
+### Subscriptions and Notifications
+
+MCP `2026-07-28` clients receive server change notifications through an explicit `subscriptions/listen` stream. Application code publishes supported notifications through the decorator's SDK-typed facade:
+
+```typescript
+const mcp = getMcpDecorator(app);
+
+mcp.notify.toolsChanged();
+mcp.notify.promptsChanged();
+mcp.notify.resourcesChanged();
+mcp.notify.resourceUpdated('config://app');
+```
+
+Configure subscription behavior through `handlerOptions`:
+
+```typescript
+import type { ServerEventBus } from '@modelcontextprotocol/server';
+
+declare const distributedBus: ServerEventBus;
+
+await app.register(FastifyMcpServer, {
+  createMcpServer,
+  handlerOptions: {
+    bus: distributedBus,
+    keepAliveMs: 15_000,
+    maxSubscriptions: 1_024
+  }
+});
+```
+
+The SDK default is an in-process event bus. In a multi-instance deployment, supply an SDK-compatible shared/distributed `ServerEventBus` when notifications published on one process must reach listeners connected to another. The plugin does not provide Redis or another bus implementation.
+
+An open `subscriptions/listen` request is a long-lived explicit subscription stream, not a protocol session. Closing it cancels only that subscription. Ordinary tools, resources, prompts, and MRTR requests remain independently routable and require neither sticky sessions nor shared protocol state.
+
 ### Horizontal Scaling
 
 No MCP-specific coordination is required to run multiple Fastify instances behind a load balancer.
@@ -389,10 +421,10 @@ No authentication result is stored in an MCP protocol session.
 
 ### Enabling Bearer Token Authentication
 
-Configure `authorization.bearerMiddlewareOptions` when registering the plugin:
+Configure `authorization.bearer` with the SDK's `BearerAuthOptions`:
 
 ```typescript
-import type { OAuthTokenVerifier } from '@modelcontextprotocol/server/server/middleware/bearerAuth';
+import type { OAuthTokenVerifier } from '@modelcontextprotocol/server';
 
 const verifier: OAuthTokenVerifier = {
   async verifyAccessToken (token) {
@@ -403,7 +435,7 @@ const verifier: OAuthTokenVerifier = {
 await app.register(FastifyMcpServer, {
   createMcpServer,
   authorization: {
-    bearerMiddlewareOptions: {
+    bearer: {
       verifier,
       requiredScopes: ['mcp:read', 'mcp:write'],
       resourceMetadataUrl: 'https://example.com/.well-known/oauth-protected-resource'
@@ -506,23 +538,20 @@ function createMcpServer () {
   });
 }
 
-const authorizationServerMetadata = {
+const oauthMetadata = {
   issuer: 'https://auth.example.com',
   authorization_endpoint: 'https://auth.example.com/oauth/authorize',
+  response_types_supported: ['code'],
   token_endpoint: 'https://auth.example.com/oauth/token'
-};
-
-const protectedResourceMetadata = {
-  resource: 'https://api.example.com/mcp',
-  authorization_servers: ['https://auth.example.com']
 };
 
 await app.register(FastifyMcpServer, {
   createMcpServer,
   authorization: {
-    oauth2: {
-      authorizationServerOAuthMetadata: authorizationServerMetadata,
-      protectedResourceOAuthMetadata: protectedResourceMetadata
+    metadata: {
+      oauthMetadata,
+      resourceServerUrl: new URL('https://api.example.com/mcp'),
+      scopesSupported: ['mcp:read', 'mcp:write']
     }
   }
 });
@@ -531,7 +560,7 @@ await app.register(FastifyMcpServer, {
 ### Endpoints
 
 - `GET /.well-known/oauth-authorization-server` — OAuth Authorization Server metadata
-- `GET /.well-known/oauth-protected-resource` — OAuth Protected Resource Metadata
+- `GET /.well-known/oauth-protected-resource/mcp` — OAuth Protected Resource Metadata for the default `/mcp` endpoint
 
 Only configured metadata endpoints are registered.
 

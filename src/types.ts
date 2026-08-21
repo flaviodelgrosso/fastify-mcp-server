@@ -1,4 +1,9 @@
-import type { AuthMetadataOptions, BearerAuthOptions, McpServerFactory } from '@modelcontextprotocol/server';
+import type {
+  AuthMetadataOptions,
+  BearerAuthOptions,
+  CreateMcpHandlerOptions,
+  McpServerFactory
+} from '@modelcontextprotocol/server';
 
 export type McpRequestMetrics = {
   requestsTotal: number;
@@ -45,6 +50,11 @@ export type FastifyMcpServerOptions = {
    */
   allowedHosts?: string[];
   authorization?: AuthorizationOptions;
+  /**
+   * Modern SDK HTTP-handler configuration. Legacy serving is deliberately
+   * excluded and always rejected by the plugin.
+   */
+  handlerOptions?: Omit<CreateMcpHandlerOptions, 'legacy'>;
   /**
    * Receives a completed HTTP exchange. This is request observability, not
    * protocol lifecycle state.

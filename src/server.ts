@@ -4,6 +4,7 @@ import mcpRoutes from './mcp.ts';
 import wellKnownRoutes from './well-known.ts';
 
 import type { FastifyMcpServerOptions, McpRequestMetrics } from './types.ts';
+import type { McpHttpHandler } from '@modelcontextprotocol/server';
 import type { FastifyInstance } from 'fastify';
 
 const MCP_DEFAULT_ENDPOINT = '/mcp';
@@ -20,12 +21,15 @@ export class FastifyMcpServer {
   };
 
   private readonly endpoint: string;
+  public readonly notify: McpHttpHandler['notify'];
 
   constructor (app: FastifyInstance, options: FastifyMcpServerOptions) {
     this.endpoint = options.endpoint ?? MCP_DEFAULT_ENDPOINT;
     const handler = createMcpHandler(options.createMcpServer, {
+      ...options.handlerOptions,
       legacy: 'reject'
     });
+    this.notify = handler.notify;
 
     if (options.authorization?.metadata) {
       app.register(wellKnownRoutes, options.authorization.metadata);

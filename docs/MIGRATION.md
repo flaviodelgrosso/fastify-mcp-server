@@ -2,6 +2,8 @@
 
 `fastify-mcp-server` 1.0.0 is a breaking migration to MCP `2026-07-28` and `@modelcontextprotocol/server` v2. It intentionally removes all initialization-era protocol compatibility.
 
+There is no backward-compatible mode. Version 1.0 always constructs the SDK handler with `legacy: 'reject'`; consumers cannot enable legacy handling through plugin options.
+
 ## Dependency migration
 
 ```sh
@@ -25,19 +27,23 @@ Use the official starting-point migration tool before reviewing application code
 npx @modelcontextprotocol/codemod v1-to-v2 .
 ```
 
-## Configuration mapping
+## Breaking-change mapping
 
-| 0.x configuration/API                                  | 1.0.0 replacement                                                            |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| `createMcpServer: () => McpServer`                     | `createMcpServer: McpServerFactory`; a factory may accept request context    |
-| `sessionStore`                                         | remove it; use explicit application identifiers with application persistence |
-| `transportOptions`                                     | remove it; the SDK v2 request handler owns modern transport behavior         |
-| `getSessionManager()`                                  | remove it; use normal Fastify hooks and `getStats()` request counters        |
-| `activeSessions`                                       | use `requestsTotal`, `inFlightRequests`, and `errorsTotal` if needed         |
-| `sessionCreated`, `sessionDestroyed`, `transportError` | use `onRequestComplete` and Fastify/Pino hooks                               |
-| Redis session storage                                  | delete it; use Redis only for domain data or a distributed SDK event bus     |
-| `authorization.bearerMiddlewareOptions`                | `authorization.bearer` (`BearerAuthOptions`)                                 |
-| `authorization.oauth2`                                 | `authorization.metadata` (`AuthMetadataOptions`)                             |
+| Pre-1.0 API / behavior                                    | v1.0 replacement                                                               |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `@modelcontextprotocol/sdk`                               | `@modelcontextprotocol/server` / v2 packages                                   |
+| `initialize` handshake                                    | removed                                                                        |
+| `Mcp-Session-Id`                                          | removed                                                                        |
+| `SessionManager` / `getSessionManager()`                  | removed; use Fastify lifecycle hooks and `getStats()` request counters         |
+| `SessionStore` / `sessionStore`                           | removed; use explicit application identifiers and application persistence      |
+| Redis session store                                       | removed; Redis may back domain data or an SDK-compatible distributed event bus |
+| per-session `transportOptions`                            | removed; the SDK v2 handler owns modern HTTP transport behavior                |
+| session lifecycle events                                  | removed; use `onRequestComplete` and Fastify/Pino hooks                        |
+| server notifications through persistent session transport | explicit `subscriptions/listen` streams plus the SDK event bus                 |
+| decorator `create()`                                      | removed; use `getStats()` and the decorator's `notify` facade                  |
+| old bearer/OAuth option shape                             | `authorization.bearer` / `authorization.metadata`                              |
+
+The `createMcpServer` option now accepts the SDK's `McpServerFactory`, including its optional request context. Modern handler settings move under `handlerOptions: Omit<CreateMcpHandlerOptions, 'legacy'>`.
 
 ## HTTP client migration
 
@@ -102,6 +108,12 @@ Use `createRequestStateCodec` or application storage to integrity-protect state 
 Use SDK v2 resource-server helpers (`verifyBearerToken`, `bearerAuthChallengeResponse`, `oauthMetadataResponse`) through this plugin's `authorization` configuration. Token verification runs per request. Validate issuer, resource indicator, expiration, and requested scopes in your verifier.
 
 Serve Protected Resource Metadata from `AuthMetadataOptions`. Prefer Client ID Metadata Documents (CIMD); Dynamic Client Registration is deprecated.
+
+## Subscription migration
+
+Use `subscriptions/listen` for explicit long-lived notification streams and publish supported change events through `getMcpDecorator(app).notify`. Configure `handlerOptions.bus` when notifications published by one process must reach a listener connected to another process.
+
+This infrastructure is not an MCP session store. Ordinary MCP requests remain stateless and independently routable, sticky sessions are unnecessary, and the plugin does not provide Redis or another event-bus implementation.
 
 ## Deployment changes
 

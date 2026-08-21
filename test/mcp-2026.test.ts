@@ -15,7 +15,47 @@ import Fastify from 'fastify';
 import FastifyMcpServer, { getMcpDecorator } from '../src/index.ts';
 
 import type { FastifyMcpServerOptions } from '../src/types.ts';
+import type { CreateMcpHandlerOptions, ServerEvent, ServerEventBus } from '@modelcontextprotocol/server';
 const protocolVersion = '2026-07-28';
+type HandlerOptions = NonNullable<FastifyMcpServerOptions['handlerOptions']>;
+type Assert<T extends true> = T;
+export type HandlerOptionsMatchSdk = Assert<
+  HandlerOptions extends Omit<CreateMcpHandlerOptions, 'legacy'>
+    ? Omit<CreateMcpHandlerOptions, 'legacy'> extends HandlerOptions
+      ? true
+      : false
+    : false
+>;
+
+// @ts-expect-error The plugin always enforces `legacy: 'reject'`.
+export const forbiddenHandlerOptions: HandlerOptions = { legacy: 'stateless' };
+class TrackingEventBus implements ServerEventBus {
+  public published: ServerEvent[] = [];
+  private readonly listeners = new Set<(event: ServerEvent) => void>();
+
+  publish (event: ServerEvent): void {
+    this.published.push(event);
+    for (const listener of this.listeners) listener(event);
+  }
+
+  subscribe (listener: (event: ServerEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+}
+async function withTimeout<T> (promise: Promise<T>, message: string, timeoutMs = 1_000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function metadata (clientName = 'test-client') {
   return {
@@ -168,7 +208,7 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
     await second.close();
   });
 
-  test('rejects routing header mismatches and legacy initialization traffic', async () => {
+  test('rejects header mismatches, unsupported versions, and legacy lifecycle traffic', async () => {
     const app = await buildApp();
     const mismatch = request('tools/list');
     mismatch.headers['mcp-method'] = 'tools/call';
@@ -186,9 +226,22 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
       },
       url: '/mcp'
     };
+    const initialized = {
+      ...legacy,
+      payload: { jsonrpc: '2.0', method: 'notifications/initialized', params: {} }
+    };
+    const unsupported = request('tools/list');
+    unsupported.headers['mcp-protocol-version'] = '2099-01-01';
+    const withSessionId = request('tools/list');
+    withSessionId.headers['mcp-session-id'] = 'ignored-legacy-session';
 
     strictEqual((await app.inject(mismatch)).statusCode, 400);
     strictEqual((await app.inject(legacy)).statusCode, 400);
+    strictEqual((await app.inject(initialized)).statusCode, 202);
+    strictEqual((await app.inject(unsupported)).statusCode, 400);
+    const sessionResponse = await app.inject(withSessionId);
+    strictEqual(sessionResponse.statusCode, 200);
+    strictEqual(sessionResponse.headers['mcp-session-id'], undefined);
     await app.close();
   });
   test('enforces name and parameter header mirrors', async () => {
@@ -370,11 +423,101 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
     strictEqual(getMcpDecorator(app).getStats().errorsTotal, 1);
     await app.close();
   });
-  test('works with the v2 Streamable HTTP client without initialization', async () => {
-    const app = await buildApp();
+  test('forwards modern handler options and exposes notification publishing', async () => {
+    const errors: Error[] = [];
+    const app = await buildApp({
+      createMcpServer: () => {
+        throw new Error('handler option failure');
+      },
+      handlerOptions: {
+        keepAliveMs: 0,
+        onerror: (error) => errors.push(error)
+      }
+    });
+
+    strictEqual(typeof getMcpDecorator(app).notify.toolsChanged, 'function');
+    strictEqual((await app.inject(request('tools/list'))).statusCode, 500);
+    strictEqual(
+      errors.some((error) => error.message === 'handler option failure'),
+      true
+    );
+    await app.close();
+  });
+  test('delivers decorator notifications through a supplied event bus without sessions', async () => {
+    const bus = new TrackingEventBus();
+    const app = await buildApp({ handlerOptions: { bus } });
+    const address = await app.listen({ host: '127.0.0.1', port: 0 });
+    const sessionHeaders: Array<string | null> = [];
+    const transport = new StreamableHTTPClientTransport(new URL(`${address}/mcp`), {
+      fetch: async (input, init) => {
+        const response = await fetch(input, init);
+        sessionHeaders.push(response.headers.get('mcp-session-id'));
+        return response;
+      }
+    });
+    const client = new Client(
+      { name: 'subscription-test', version: '1.0.0' },
+      {
+        supportedProtocolVersions: [protocolVersion],
+        versionNegotiation: { mode: { pin: protocolVersion } }
+      }
+    );
+    let notifications = 0;
+    let resolveFirstPublish: (() => void) | undefined;
+    let resolveSecondPublish: (() => void) | undefined;
+    const firstPublishReceived = new Promise<void>((resolve) => {
+      resolveFirstPublish = resolve;
+    });
+    const secondPublishReceived = new Promise<void>((resolve) => {
+      resolveSecondPublish = resolve;
+    });
+    client.setNotificationHandler('notifications/tools/list_changed', () => {
+      notifications++;
+      if (notifications === 2) resolveFirstPublish?.();
+      if (notifications === 3) resolveSecondPublish?.();
+    });
+
+    try {
+      await client.connect(transport);
+      const first = await client.listen({ toolsListChanged: true });
+      const second = await client.listen({ toolsListChanged: true });
+
+      getMcpDecorator(app).notify.toolsChanged();
+      deepStrictEqual(
+        (await client.listTools()).tools.map((tool) => tool.name),
+        ['echo', 'confirm']
+      );
+      await withTimeout(firstPublishReceived, 'initial subscription notifications not received');
+      await withTimeout(first.close(), 'first subscription did not close');
+      strictEqual(await first.closed, 'local');
+      getMcpDecorator(app).notify.toolsChanged();
+      await withTimeout(secondPublishReceived, 'remaining subscription notification not received');
+
+      strictEqual(notifications, 3);
+      deepStrictEqual(bus.published, [{ kind: 'tools_list_changed' }, { kind: 'tools_list_changed' }]);
+      strictEqual(
+        sessionHeaders.every((header) => header === null),
+        true
+      );
+      await withTimeout(second.close(), 'second subscription did not close');
+    } finally {
+      await client.close().catch(() => undefined);
+      await app.close();
+    }
+  });
+
+  test('forwards subscription limits, keepalives, and handler errors', async () => {
+    const errors: Error[] = [];
+    const app = await buildApp({
+      handlerOptions: {
+        keepAliveMs: 5,
+        maxSubscriptions: 1,
+        onerror: (error) => errors.push(error)
+      }
+    });
     const address = await app.listen({ host: '127.0.0.1', port: 0 });
     const client = new Client(
-      { name: 'sdk-v2-test', version: '1.0.0' },
+      { name: 'subscription-limit-test', version: '1.0.0' },
       {
         supportedProtocolVersions: [protocolVersion],
         versionNegotiation: { mode: { pin: protocolVersion } }
@@ -384,16 +527,85 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
 
     try {
       await client.connect(transport);
+      const subscription = await client.listen({ toolsListChanged: true });
+      await client.listen({ toolsListChanged: true }).then(
+        () => strictEqual(true, false, 'second subscription should be rejected'),
+        (error: Error) => strictEqual(error.message.includes('Subscription limit reached'), true)
+      );
+      strictEqual(
+        errors.some((error) => error.message.includes('subscription limit reached (1)')),
+        true
+      );
+      await withTimeout(subscription.close(), 'limited subscription did not close');
+
+      const controller = new AbortController();
+      const listenRequest = request('subscriptions/listen', {
+        notifications: { toolsListChanged: true }
+      });
+      listenRequest.payload.id = 99;
+      const response = await fetch(`${address}/mcp`, {
+        body: JSON.stringify(listenRequest.payload),
+        headers: listenRequest.headers,
+        method: 'POST',
+        signal: controller.signal
+      });
+      strictEqual(response.status, 200);
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let streamText = '';
+      while (!streamText.includes(': keepalive')) {
+        const chunk = await Promise.race([
+          reader.read(),
+          new Promise<never>((_resolve, reject) => setTimeout(() => reject(new Error('keepalive not received')), 250))
+        ]);
+        if (chunk.done) break;
+        streamText += decoder.decode(chunk.value, { stream: true });
+      }
+      strictEqual(streamText.includes(': keepalive'), true);
+      controller.abort();
+      await reader.cancel().catch(() => undefined);
+    } finally {
+      await client.close().catch(() => undefined);
+      await app.close();
+    }
+  });
+  test('runs tools, MRTR, and subscriptions through the official v2 client', async () => {
+    const app = await buildApp();
+    const address = await app.listen({ host: '127.0.0.1', port: 0 });
+    const client = new Client(
+      { name: 'sdk-v2-test', version: '1.0.0' },
+      {
+        capabilities: { elicitation: { form: {} } },
+        supportedProtocolVersions: [protocolVersion],
+        versionNegotiation: { mode: { pin: protocolVersion } }
+      }
+    );
+    const transport = new StreamableHTTPClientTransport(new URL(`${address}/mcp`));
+    let resolveNotification: (() => void) | undefined;
+    const notification = new Promise<void>((resolve) => {
+      resolveNotification = resolve;
+    });
+    client.setRequestHandler('elicitation/create', () => ({
+      action: 'accept',
+      content: { confirm: true }
+    }));
+    client.setNotificationHandler('notifications/tools/list_changed', () => resolveNotification?.());
+
+    try {
+      await client.connect(transport);
       deepStrictEqual(
         (await client.listTools()).tools.map((tool) => tool.name),
         ['echo', 'confirm']
       );
-      deepStrictEqual((await client.callTool({ arguments: {}, name: 'echo' })).content, [
-        {
-          text: 'ok',
-          type: 'text'
-        }
-      ]);
+      deepStrictEqual((await client.callTool({ arguments: {}, name: 'echo' })).content, [{ text: 'ok', type: 'text' }]);
+
+      const resumed = await client.callTool({ arguments: {}, name: 'confirm' });
+      deepStrictEqual(resumed.content, [{ text: 'true', type: 'text' }]);
+      const subscription = await client.listen({ toolsListChanged: true });
+      getMcpDecorator(app).notify.toolsChanged();
+      await withTimeout(notification, 'official client notification not received');
+      await withTimeout(subscription.close(), 'official client subscription did not close');
+      strictEqual(await subscription.closed, 'local');
     } finally {
       await client.close().catch(() => undefined);
       await app.close();
@@ -442,14 +654,14 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
     await restarted.close();
   });
 
-  test('rejects missing modern headers and obsolete endpoint methods', async () => {
+  test('delegates missing routing headers to the SDK and rejects obsolete endpoint methods', async () => {
     const app = await buildApp();
     const missingVersion = request('tools/list');
     delete missingVersion.headers['mcp-protocol-version'];
     const missingMethod = request('tools/list');
     delete missingMethod.headers['mcp-method'];
 
-    strictEqual((await app.inject(missingVersion)).statusCode, 400);
+    strictEqual((await app.inject(missingVersion)).statusCode, 200);
     strictEqual((await app.inject(missingMethod)).statusCode, 400);
     strictEqual((await app.inject({ method: 'GET', url: '/mcp' })).statusCode, 405);
     strictEqual((await app.inject({ method: 'DELETE', url: '/mcp' })).statusCode, 405);
