@@ -1,10 +1,7 @@
 import { deepStrictEqual, equal, ok, strictEqual } from 'node:assert';
 import { describe, test } from 'node:test';
 
-import {
-  Client,
-  StreamableHTTPClientTransport
-} from '@modelcontextprotocol/client';
+import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import {
   acceptedContent,
   fromJsonSchema,
@@ -150,14 +147,18 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
     strictEqual(initialResult.requestState, 'opaque-state');
     ok(initialResult.inputRequests.confirm);
 
-    const retry = request('tools/call', {
-      arguments: {},
-      inputResponses: {
-        confirm: { action: 'accept', content: { confirm: true } }
+    const retry = request(
+      'tools/call',
+      {
+        arguments: {},
+        inputResponses: {
+          confirm: { action: 'accept', content: { confirm: true } }
+        },
+        name: 'confirm',
+        requestState: initialResult.requestState
       },
-      name: 'confirm',
-      requestState: initialResult.requestState
-    }, 'confirm');
+      'confirm'
+    );
     retry.payload.id = 2;
     const resumed = await second.inject(retry);
 
@@ -194,34 +195,50 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
     const app = await buildApp({
       createMcpServer: () => {
         const server = new McpServer({ name: 'test', version: '1.0.0' });
-        server.registerTool('regional', {
-          inputSchema: fromJsonSchema({
-            properties: {
-              region: { type: 'string', 'x-mcp-header': 'Region' }
-            },
-            required: ['region'],
-            type: 'object'
-          } as never)
-        }, async () => ({
-          content: [{ text: 'regional', type: 'text' }]
-        }));
+        server.registerTool(
+          'regional',
+          {
+            inputSchema: fromJsonSchema({
+              properties: {
+                region: { type: 'string', 'x-mcp-header': 'Region' }
+              },
+              required: ['region'],
+              type: 'object'
+            } as never)
+          },
+          async () => ({
+            content: [{ text: 'regional', type: 'text' }]
+          })
+        );
         return server;
       }
     });
-    const valid = request('tools/call', {
-      arguments: { region: 'us-west1' },
-      name: 'regional'
-    }, 'regional');
+    const valid = request(
+      'tools/call',
+      {
+        arguments: { region: 'us-west1' },
+        name: 'regional'
+      },
+      'regional'
+    );
     valid.headers['mcp-param-region'] = 'us-west1';
-    const nameMismatch = request('tools/call', {
-      arguments: { region: 'us-west1' },
-      name: 'regional'
-    }, 'different');
+    const nameMismatch = request(
+      'tools/call',
+      {
+        arguments: { region: 'us-west1' },
+        name: 'regional'
+      },
+      'different'
+    );
     nameMismatch.headers['mcp-param-region'] = 'us-west1';
-    const parameterMismatch = request('tools/call', {
-      arguments: { region: 'us-west1' },
-      name: 'regional'
-    }, 'regional');
+    const parameterMismatch = request(
+      'tools/call',
+      {
+        arguments: { region: 'us-west1' },
+        name: 'regional'
+      },
+      'regional'
+    );
     parameterMismatch.headers['mcp-param-region'] = 'eu-west1';
 
     strictEqual((await app.inject(valid)).statusCode, 200);
@@ -255,13 +272,15 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
     strictEqual((await app.inject(deniedHost)).statusCode, 403);
     strictEqual((await app.inject(deniedOrigin)).statusCode, 403);
     strictEqual((await app.inject(accepted)).statusCode, 200);
-    deepStrictEqual(events, [{
-      method: 'tools/call',
-      name: 'echo',
-      protocolVersion,
-      statusCode: 200,
-      durationMs: events[0]?.durationMs
-    }]);
+    deepStrictEqual(events, [
+      {
+        method: 'tools/call',
+        name: 'echo',
+        protocolVersion,
+        statusCode: 200,
+        durationMs: events[0]?.durationMs
+      }
+    ]);
     strictEqual(getMcpDecorator(app).getStats().errorsTotal, 0);
     await app.close();
   });
@@ -311,18 +330,33 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
     strictEqual((await app.inject(first)).statusCode, 200);
     strictEqual((await app.inject(second)).statusCode, 200);
     strictEqual(verified, 3);
-    strictEqual((await app.inject({
-      method: 'GET',
-      url: '/.well-known/oauth-protected-resource/mcp'
-    })).statusCode, 200);
-    strictEqual((await app.inject({
-      method: 'GET',
-      url: '/.well-known/oauth-authorization-server'
-    })).statusCode, 200);
-    strictEqual((await app.inject({
-      method: 'OPTIONS',
-      url: '/.well-known/oauth-protected-resource/mcp'
-    })).statusCode, 204);
+    strictEqual(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/.well-known/oauth-protected-resource/mcp'
+        })
+      ).statusCode,
+      200
+    );
+    strictEqual(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/.well-known/oauth-authorization-server'
+        })
+      ).statusCode,
+      200
+    );
+    strictEqual(
+      (
+        await app.inject({
+          method: 'OPTIONS',
+          url: '/.well-known/oauth-protected-resource/mcp'
+        })
+      ).statusCode,
+      204
+    );
     await app.close();
   });
   test('reports per-request factory failures without retaining state', async () => {
@@ -350,11 +384,16 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
 
     try {
       await client.connect(transport);
-      deepStrictEqual((await client.listTools()).tools.map((tool) => tool.name), ['echo', 'confirm']);
-      deepStrictEqual((await client.callTool({ arguments: {}, name: 'echo' })).content, [{
-        text: 'ok',
-        type: 'text'
-      }]);
+      deepStrictEqual(
+        (await client.listTools()).tools.map((tool) => tool.name),
+        ['echo', 'confirm']
+      );
+      deepStrictEqual((await client.callTool({ arguments: {}, name: 'echo' })).content, [
+        {
+          text: 'ok',
+          type: 'text'
+        }
+      ]);
     } finally {
       await client.close().catch(() => undefined);
       await app.close();
@@ -364,11 +403,16 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
     const app = await buildApp({
       createMcpServer: () => {
         const server = new McpServer({ name: 'test', version: '1.0.0' });
-        server.registerResource('config', 'config://app', {
-          cacheHint: { cacheScope: 'public', ttlMs: 30_000 }
-        }, async () => ({
-          contents: [{ text: 'enabled=true', uri: 'config://app' }]
-        }));
+        server.registerResource(
+          'config',
+          'config://app',
+          {
+            cacheHint: { cacheScope: 'public', ttlMs: 30_000 }
+          },
+          async () => ({
+            contents: [{ text: 'enabled=true', uri: 'config://app' }]
+          })
+        );
         return server;
       }
     });
@@ -385,10 +429,16 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
       Array.from({ length: 8 }, () => first.inject(request('tools/call', { arguments: {}, name: 'echo' }, 'echo')))
     );
 
-    deepStrictEqual(concurrent.map((response) => response.statusCode), Array.from({ length: 8 }, () => 200));
+    deepStrictEqual(
+      concurrent.map((response) => response.statusCode),
+      Array.from({ length: 8 }, () => 200)
+    );
     await first.close();
     const restarted = await buildApp();
-    strictEqual((await restarted.inject(request('tools/call', { arguments: {}, name: 'echo' }, 'echo'))).statusCode, 200);
+    strictEqual(
+      (await restarted.inject(request('tools/call', { arguments: {}, name: 'echo' }, 'echo'))).statusCode,
+      200
+    );
     await restarted.close();
   });
 
@@ -442,11 +492,16 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
     controller.abort();
     await pending.catch(() => undefined);
     await cancelled;
-    strictEqual((await fetch(`${address}/mcp`, {
-      body: JSON.stringify(request('tools/call', { arguments: {}, name: 'echo' }, 'echo').payload),
-      headers: request('tools/call', { arguments: {}, name: 'echo' }, 'echo').headers,
-      method: 'POST'
-    })).status, 200);
+    strictEqual(
+      (
+        await fetch(`${address}/mcp`, {
+          body: JSON.stringify(request('tools/call', { arguments: {}, name: 'echo' }, 'echo').payload),
+          headers: request('tools/call', { arguments: {}, name: 'echo' }, 'echo').headers,
+          method: 'POST'
+        })
+      ).status,
+      200
+    );
     await app.close();
   });
 });
