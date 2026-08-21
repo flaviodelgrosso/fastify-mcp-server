@@ -1,68 +1,58 @@
+import { createMcpHandler } from '@modelcontextprotocol/server';
+
 import mcpRoutes from './routes/mcp.ts';
 import wellKnownRoutes from './routes/well-known.ts';
-import { SessionManager } from './sessions/manager.ts';
-import { InMemorySessionStore } from './sessions/store/memory.ts';
 
-import type { FastifyMcpServerOptions } from './types.ts';
+import type {
+  FastifyMcpServerOptions,
+  McpRequestMetrics
+} from './types.ts';
 import type { FastifyInstance } from 'fastify';
 
 const MCP_DEFAULT_ENDPOINT = '/mcp';
 
 /**
- * Main server class that coordinates MCP streamable HTTP handling
+ * Fastify-native host for the MCP v2 request handler. It owns no MCP protocol
+ * session state; the SDK creates a server from the factory per HTTP request.
  */
 export class FastifyMcpServer {
-  private fastify: FastifyInstance;
-  private options: FastifyMcpServerOptions;
-  private sessionManager: SessionManager;
+  private readonly metrics: McpRequestMetrics = {
+    requestsTotal: 0,
+    inFlightRequests: 0,
+    errorsTotal: 0
+  };
 
-  constructor (app: FastifyInstance, options: FastifyMcpServerOptions) {
-    this.fastify = app;
-    this.options = options;
+  private readonly endpoint: string;
 
-    // Initialize session manager with provided or default session store
-    const sessionStore = options.sessionStore || new InMemorySessionStore();
-    this.sessionManager = new SessionManager({
-      store: sessionStore,
-      transportOptions: options.transportOptions
+  constructor (
+    app: FastifyInstance,
+    options: FastifyMcpServerOptions
+  ) {
+    this.endpoint = options.endpoint ?? MCP_DEFAULT_ENDPOINT;
+    const handler = createMcpHandler(options.createMcpServer, {
+      legacy: 'reject'
     });
 
-    // Register OAuth metadata routes if oauth2 config is provided
-    const oauth2 = options.authorization?.oauth2;
-    if (oauth2) {
-      this.fastify.register(wellKnownRoutes, oauth2);
+    if (options.authorization?.metadata) {
+      app.register(wellKnownRoutes, options.authorization.metadata);
     }
 
-    // Register MCP routes
-    this.fastify.register(mcpRoutes, {
-      sessionManager: this.sessionManager,
+    app.register(mcpRoutes, {
+      allowedHosts: options.allowedHosts,
+      allowedOrigins: options.allowedOrigins,
+      authorization: options.authorization?.bearer,
       endpoint: this.endpoint,
-      bearerMiddlewareOptions: options.authorization?.bearerMiddlewareOptions
+      handler,
+      metrics: this.metrics,
+      onRequestComplete: options.onRequestComplete
+    });
+
+    app.addHook('onClose', async () => {
+      await handler.close();
     });
   }
 
-  public create () {
-    return this.options.createMcpServer();
-  }
-
-  /**
-   * Gets current session statistics
-   */
-  public async getStats () {
-    return {
-      activeSessions: await this.sessionManager.getSessionsCount(),
-      endpoint: this.endpoint
-    };
-  }
-
-  /**
-   * Get the session manager instance for event listening
-   */
-  public getSessionManager (): SessionManager {
-    return this.sessionManager;
-  }
-
-  private get endpoint (): string {
-    return this.options.endpoint || MCP_DEFAULT_ENDPOINT;
+  public getStats (): McpRequestMetrics & { endpoint: string } {
+    return { ...this.metrics, endpoint: this.endpoint };
   }
 }

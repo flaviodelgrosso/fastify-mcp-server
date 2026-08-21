@@ -1,6 +1,8 @@
 # Fastify MCP Server Plugin
 
-A robust Fastify plugin that provides seamless integration with the Model Context Protocol (MCP) through streamable HTTP transport. This plugin enables your Fastify applications to act as MCP servers, allowing AI assistants and other clients to interact with your services using the standardized MCP protocol.
+A Fastify plugin for building Model Context Protocol (MCP) HTTP servers aligned with the `2026-07-28` specification.
+
+The plugin provides a thin Fastify-native integration around the MCP TypeScript SDK v2 HTTP handler. MCP requests are processed independently: there is no `initialize` handshake, no `Mcp-Session-Id`, no protocol session store, and no transport affinity between requests.
 
 [![NPM version](https://img.shields.io/npm/v/fastify-mcp-server.svg?style=flat)](https://www.npmjs.com/package/fastify-mcp-server)
 [![NPM downloads](https://img.shields.io/npm/dm/fastify-mcp-server.svg?style=flat)](https://www.npmjs.com/package/fastify-mcp-server)
@@ -21,37 +23,26 @@ A robust Fastify plugin that provides seamless integration with the Model Contex
   - [API Reference](#api-reference)
     - [Plugin Options](#plugin-options)
     - [MCP Decorator](#mcp-decorator)
-    - [Session Events](#session-events)
   - [HTTP Protocol](#http-protocol)
-    - [POST `/mcp`](#post-mcp)
-    - [GET `/mcp`](#get-mcp)
-    - [DELETE `/mcp`](#delete-mcp)
-    - [Session Management](#session-management)
+    - [Stateless Request Model](#stateless-request-model)
+    - [Protocol Discovery](#protocol-discovery)
+    - [Routing Headers](#routing-headers)
+    - [Streaming and Cancellation](#streaming-and-cancellation)
   - [Advanced Usage](#advanced-usage)
-    - [Custom Error Handling](#custom-error-handling)
-    - [Health Monitoring](#health-monitoring)
-    - [Graceful Shutdown](#graceful-shutdown)
-  - [Session Storage](#session-storage)
-    - [Built-in Session Stores](#built-in-session-stores)
-      - [In-Memory Session Store (Default)](#in-memory-session-store-default)
-      - [Redis Session Store](#redis-session-store)
-    - [Custom Session Store](#custom-session-store)
-    - [How It Works](#how-it-works)
-    - [Comparison](#comparison)
-    - [Docker Compose Example](#docker-compose-example)
+    - [Request-Scoped Context](#request-scoped-context)
+    - [Application State](#application-state)
+    - [Multi-Round-Trip Requests](#multi-round-trip-requests)
+    - [Horizontal Scaling](#horizontal-scaling)
   - [Authentication: Bearer Token Support](#authentication-bearer-token-support)
     - [Enabling Bearer Token Authentication](#enabling-bearer-token-authentication)
-    - [How It Works](#how-it-works-1)
-      - [Example Tool with authentication information](#example-tool-with-authentication-information)
-      - [Example Error Response](#example-error-response)
-      - [Example using PAT in Visual Studio Code](#example-using-pat-in-visual-studio-code)
+    - [How It Works](#how-it-works)
+    - [Accessing Authentication Information](#accessing-authentication-information)
+    - [Example Error Response](#example-error-response)
+    - [Example using PAT in Visual Studio Code](#example-using-pat-in-visual-studio-code)
   - [Well-Known OAuth Metadata Routes](#well-known-oauth-metadata-routes)
     - [Registering Well-Known Routes](#registering-well-known-routes)
     - [Endpoints](#endpoints)
-  - [Custom Transport Options](#custom-transport-options)
-    - [Available Options](#available-options)
-    - [Use Cases](#use-cases)
-    - [Example: Custom Session ID with Prefix](#example-custom-session-id-with-prefix)
+  - [Protocol Compatibility](#protocol-compatibility)
   - [Development](#development)
     - [Setup](#setup)
     - [Scripts](#scripts)
@@ -62,95 +53,115 @@ A robust Fastify plugin that provides seamless integration with the Model Contex
 
 ## Overview
 
-The Model Context Protocol (MCP) is an open standard that enables AI assistants to securely connect to external data sources and tools. This plugin provides a streamable HTTP transport implementation for MCP servers built with Fastify, offering:
+The Model Context Protocol (MCP) is an open standard that enables AI applications to connect to tools, resources, and external systems through a common protocol.
 
-- **High Performance**: Built on top of Fastify's high-performance HTTP server
-- **Session Management**: Automatic handling of MCP sessions with proper lifecycle management
-- **Event-Driven Architecture**: Real-time session monitoring and error handling
-- **Type Safety**: Full TypeScript support with comprehensive type definitions
-- **Production Ready**: Robust error handling, graceful shutdown, and monitoring capabilities
+`fastify-mcp-server` integrates MCP with Fastify while keeping the protocol layer stateless by construction. Each HTTP request is processed from its own request envelope and can be handled by any healthy Fastify instance.
+
+This means the plugin does not require:
+
+- protocol sessions;
+- `Mcp-Session-Id` headers;
+- sticky load balancing;
+- shared protocol state in Redis or another session store;
+- an `initialize` / `initialized` handshake before normal MCP operations.
+
+Application state is still fully supported, but it belongs to your application and should be represented by explicit domain identifiers, authenticated principals, databases, caches, or other application-owned dependencies.
 
 ## Features
 
 ### Core Functionality
 
-- ✅ **MCP Server Integration**: Seamless integration with `@modelcontextprotocol/sdk`
-- ✅ **Streamable HTTP Transport**: Full support for MCP's streamable HTTP protocol
-- ✅ **Session Management**: Automatic session creation, tracking, and cleanup
-- ✅ **Session Storage**: Support for in-memory and custom session stores (Redis included)
-- ✅ **Request Routing**: Intelligent routing for different MCP request types
-- ✅ **Authentication**: Optional Bearer token support for secure access
-- ✅ **Error Handling**: Comprehensive error handling with proper MCP error responses
+- ✅ **MCP 2026-07-28**: Built for the modern MCP protocol revision
+- ✅ **Stateless HTTP**: Every request is independently processable
+- ✅ **SDK v2 Integration**: Built around `@modelcontextprotocol/server`
+- ✅ **Fastify Integration**: Works with normal Fastify hooks, plugins, logging, and lifecycle management
+- ✅ **Tools, Resources, and Prompts**: Use the standard MCP SDK v2 server APIs
+- ✅ **Protocol Discovery**: Supports the modern `server/discover` flow
+- ✅ **Modern Routing Headers**: Supports MCP protocol, method, name, and parameter headers
+- ✅ **Authentication**: Optional Bearer token validation on every request
+- ✅ **Type Safety**: Full TypeScript support
 
 ### Advanced Features
 
-- ✅ **Event System**: Listen to session lifecycle events (creation, destruction, errors)
-- ✅ **Session Statistics**: Real-time monitoring of active sessions
-- ✅ **Graceful Shutdown**: Proper cleanup of all sessions during server shutdown
-- ✅ **Configurable Endpoints**: Customizable MCP endpoint paths
-- ✅ **Custom Session Stores**: Implement your own session storage backend
-- ✅ **Custom Transport Options**: Configure transport behavior with custom session ID generation and callbacks
-- ✅ **TypeScript Support**: Full type safety and IntelliSense support
+- ✅ **Horizontal Scaling**: No sticky sessions or shared MCP protocol store required
+- ✅ **Request-Scoped Metadata**: Client capabilities, protocol metadata, auth, and tracing are evaluated per request
+- ✅ **Multi-Round-Trip Requests**: Supports the 2026 `input_required` model
+- ✅ **Request-State Continuations**: Explicit continuation state can be carried through `requestState`
+- ✅ **Streaming Responses**: Uses modern per-request HTTP/SSE behavior when required
+- ✅ **Request Cancellation**: Client disconnects cancel the corresponding request stream
+- ✅ **Configurable Endpoint**: Mount MCP on a custom Fastify route
+- ✅ **OAuth Metadata**: Optional Protected Resource and Authorization Server metadata endpoints
 
 ## Installation
 
 ```bash
-npm install fastify-mcp-server @modelcontextprotocol/sdk
+npm install fastify-mcp-server @modelcontextprotocol/server
 ```
+
+The MCP TypeScript SDK v2 is the supported SDK line for this major version.
 
 ## Quick Demo
 
-To quickly see the plugin in action, you can run the demo server:
+Run the demo server:
 
 ```bash
-# Run with in-memory session storage
 npm run dev
+```
 
-# Run with Redis session storage
-npm run dev:redis
+Start the MCP Inspector in another terminal:
 
-# Start MCP inspector to interact with the server
+```bash
 npm run inspector
 ```
 
-This will start a Fastify server with the MCP plugin enabled, allowing you to interact with it via the MCP inspector or any MCP-compatible client.
+The demo exposes a stateless MCP HTTP endpoint at `/mcp`.
 
 ## Quick Start
 
 ```typescript
 import Fastify from 'fastify';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import FastifyMcpServer, { getMcpDecorator } from 'fastify-mcp-server';
+import { McpServer } from '@modelcontextprotocol/server';
+import * as z from 'zod/v4';
+import FastifyMcpServer from 'fastify-mcp-server';
 
 const app = Fastify({ logger: true });
 
-// Create MCP server factory function
 function createMcpServer () {
   const mcp = new McpServer({
     name: 'my-mcp-server',
     version: '1.0.0'
   });
 
-  // Define MCP tools
-  mcp.tool('hello-world', () => ({
-    content: [{ type: 'text', text: 'Hello from MCP!' }]
-  }));
+  mcp.registerTool(
+    'hello-world',
+    {
+      description: 'Return a greeting',
+      inputSchema: z.object({
+        name: z.string().optional()
+      })
+    },
+    async ({ name }) => ({
+      content: [
+        {
+          type: 'text',
+          text: `Hello ${name ?? 'world'}!`
+        }
+      ]
+    })
+  );
 
   return mcp;
 }
 
-// Register the plugin
 await app.register(FastifyMcpServer, {
   createMcpServer,
-  endpoint: '/mcp' // optional, defaults to '/mcp'
+  endpoint: '/mcp'
 });
 
-// Get MCP decorator for advanced features
-const mcpServer = getMcpDecorator(app);
-
-// Start the server
 await app.listen({ host: '127.0.0.1', port: 3000 });
 ```
+
+Each MCP request is handled independently. A `tools/list` or `tools/call` request may be the first request received by a fresh server instance.
 
 ## API Reference
 
@@ -158,310 +169,299 @@ await app.listen({ host: '127.0.0.1', port: 3000 });
 
 ```typescript
 type FastifyMcpServerOptions = {
-  createMcpServer: () => McpServer; // MCP Server factory function
-  endpoint?: string; // Custom endpoint path (default: '/mcp')
+  /**
+   * Factory invoked to create the MCP server used for a request.
+   */
+  createMcpServer: () => McpServer | Promise<McpServer>;
+
+  /**
+   * MCP endpoint path. Defaults to '/mcp'.
+   */
+  endpoint?: string;
+
+  /**
+   * Optional request-scoped authorization configuration.
+   */
   authorization?: {
-    // Authorization configuration
     bearerMiddlewareOptions: {
-      verifier: OAuthTokenVerifier; // Custom verifier for Bearer tokens
-      requiredScopes?: string[]; // Optional scopes required for access
-      resourceMetadataUrl?: string; // Optional URL for resource metadata
+      verifier: OAuthTokenVerifier;
+      requiredScopes?: string[];
+      resourceMetadataUrl?: string;
     };
+
     oauth2?: {
-      // OAuth2 metadata configuration
-      authorizationServerOAuthMetadata: OAuthMetadata; // OAuth metadata for authorization server
-      protectedResourceOAuthMetadata: OAuthProtectedResourceMetadata; // OAuth metadata for protected resource
+      authorizationServerOAuthMetadata?: OAuthMetadata;
+      protectedResourceOAuthMetadata?: OAuthProtectedResourceMetadata;
     };
   };
-  sessionStore?: SessionStore; // Optional custom session store implementation
-  transportOptions?: StreamableHTTPServerTransportOptions; // Optional transport configuration options
 };
 ```
 
+There are intentionally no MCP session-store, session-ID, or per-session transport options.
+
 ### MCP Decorator
 
-The plugin decorates your Fastify instance with an MCP server that provides several useful methods:
+The Fastify decorator provides access to the configured MCP server factory for application-level integration:
 
 ```typescript
-const mcpServer = getMcpDecorator(app);
+import { getMcpDecorator } from 'fastify-mcp-server';
 
-// Get session statistics
-const stats = mcpServer.getStats();
-console.log(`Active sessions: ${stats.activeSessions}`);
-
-// Access session manager for event handling
-const sessionManager = mcpServer.getSessionManager();
-
-// Create a new MCP server instance (useful for per-session customization)
-const newMcpInstance = mcpServer.create();
+const mcp = getMcpDecorator(app);
+const server = await mcp.create();
 ```
 
-### Session Events
-
-Monitor session lifecycle with event listeners:
-
-```typescript
-const sessionManager = mcpServer.getSessionManager();
-
-// Session created
-sessionManager.on('sessionCreated', (sessionId: string) => {
-  console.log(`New MCP session: ${sessionId}`);
-});
-
-// Session destroyed
-sessionManager.on('sessionDestroyed', (sessionId: string) => {
-  console.log(`MCP session ended: ${sessionId}`);
-});
-
-// Transport errors
-sessionManager.on('transportError', (sessionId: string, error: Error) => {
-  console.error(`Error in session ${sessionId}:`, error);
-});
-```
+The decorator does not expose protocol sessions or transport state.
 
 ## HTTP Protocol
 
-The plugin exposes three HTTP endpoints for MCP communication:
+The plugin exposes a modern MCP Streamable HTTP endpoint, `/mcp` by default.
 
-### POST `/mcp`
+### Stateless Request Model
 
-- **Purpose**: Create new sessions or send requests to existing sessions
-- **Headers**:
-  - `content-type: application/json`
-  - `mcp-session-id: <session-id>` (optional, for existing sessions)
-- **Body**: MCP request payload
+MCP `2026-07-28` does not use the old initialization/session lifecycle.
 
-### GET `/mcp`
+Every request contains the protocol information required to process that operation. The plugin creates the required MCP request context, dispatches the operation, returns the result, and does not retain protocol state for a future request.
 
-- **Purpose**: Retrieve streaming responses
-- **Headers**:
-  - `mcp-session-id: <session-id>` (required)
-- **Response**: Server-sent events stream
+As a result:
 
-### DELETE `/mcp`
+- `initialize` is not required or supported as a lifecycle handshake;
+- `Mcp-Session-Id` is not generated, returned, or accepted as a routing mechanism;
+- a request does not need to reach the same Fastify process as a previous request;
+- restarting a process between requests does not invalidate an MCP protocol relationship.
 
-- **Purpose**: Terminate sessions
-- **Headers**:
-  - `mcp-session-id: <session-id>` (required)
+### Protocol Discovery
 
-### Session Management
+Modern clients can call `server/discover` to discover supported protocol versions and server capabilities.
 
-Sessions are managed through a dedicated `SessionManager` class that:
+Discovery is optional. Normal MCP operations do not require a previous discovery request.
 
-- **Creates** new transport instances with unique session IDs
-- **Tracks** active sessions in memory
-- **Handles** session lifecycle events
-- **Provides** graceful cleanup on shutdown
-- **Emits** events for monitoring and logging
+Clients should pin or negotiate the `2026-07-28` protocol revision when connecting to this server.
+
+### Routing Headers
+
+MCP `2026-07-28` Streamable HTTP uses standard routing headers that can also be consumed by Fastify hooks, gateways, authorization middleware, metrics, and rate limiting.
+
+Relevant headers include:
+
+- `MCP-Protocol-Version`
+- `Mcp-Method`
+- `Mcp-Name` for named operations such as tool calls
+- `Mcp-Param-*` for schema fields declared with `x-mcp-header`
+
+The MCP SDK validates these headers against the JSON-RPC request. Header/body mismatches are rejected rather than silently accepted.
+
+### Streaming and Cancellation
+
+Most MCP calls can complete with a normal JSON response. When an operation emits related messages or requires a subscription stream, the response may use Server-Sent Events (SSE).
+
+Streaming is scoped to the current request; it is not a persistent protocol session.
+
+For modern Streamable HTTP, cancellation is performed by closing the relevant response stream. Cancelling one request does not affect any other request from the same client.
 
 ## Advanced Usage
 
-### Custom Error Handling
+### Request-Scoped Context
+
+The MCP 2026 request envelope carries request-scoped information such as protocol version, client information, capabilities, extension metadata, and logging preferences.
+
+Read that information from the current handler context instead of caching it globally or assuming it was established by an earlier request.
 
 ```typescript
-sessionManager.on('transportError', (sessionId, error) => {
-  console.error(`Transport error: ${error.message}`);
+mcp.registerTool(
+  'request-info',
+  {
+    description: 'Inspect request-scoped MCP metadata'
+  },
+  async (ctx) => {
+    const envelope = ctx.mcpReq.envelope;
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            protocolVersion: envelope?.protocolVersion,
+            clientInfo: envelope?.clientInfo
+          })
+        }
+      ]
+    };
+  }
+);
+```
+
+Treat client identity metadata as informational. Security decisions should be based on authenticated application identity and authorization policy.
+
+### Application State
+
+Stateless MCP does not mean your application must be stateless.
+
+Persist business state using explicit application identifiers rather than an MCP session ID. For example:
+
+```text
+cart/create
+  -> { cartId: "cart_123" }
+
+cart/add-item
+  <- { cartId: "cart_123", productId: "sku_42" }
+```
+
+`cart/create` and `cart/add-item` may execute on different Fastify instances because the application state is addressed explicitly by `cartId`.
+
+Use your normal database, Redis instance, cache, durable object, or other storage when application-level persistence is required.
+
+### Multi-Round-Trip Requests
+
+MCP `2026-07-28` replaces server-to-client JSON-RPC requests with the `input_required` result model.
+
+A handler that needs more client input returns `inputRequired(...)`. The client fulfills the embedded request and retries the original operation with the resulting `inputResponses`.
+
+```typescript
+import { acceptedContent, inputRequired } from '@modelcontextprotocol/server';
+import * as z from 'zod/v4';
+
+const confirmationSchema = z.object({
+  confirmed: z.boolean()
 });
+
+mcp.registerTool(
+  'dangerous-operation',
+  {
+    description: 'Example operation requiring confirmation'
+  },
+  async (ctx) => {
+    const confirmation = acceptedContent(ctx.mcpReq.inputResponses, 'confirmation', confirmationSchema);
+
+    if (!confirmation) {
+      return inputRequired({
+        inputRequests: {
+          confirmation: inputRequired.elicit({
+            message: 'Confirm this operation',
+            requestedSchema: confirmationSchema
+          })
+        }
+      });
+    }
+
+    if (!confirmation.confirmed) {
+      return {
+        content: [{ type: 'text', text: 'Operation cancelled' }]
+      };
+    }
+
+    return {
+      content: [{ type: 'text', text: 'Operation completed' }]
+    };
+  }
+);
 ```
 
-### Health Monitoring
+For multi-step flows, use `requestState` to carry an opaque continuation between rounds. Treat it as untrusted client input and integrity-protect it before relying on its contents.
 
-```typescript
-// Periodic health check
-setInterval(() => {
-  const stats = mcpServer.getStats();
-  console.log(`Health Check - Active Sessions: ${stats.activeSessions}`);
+Do not use an in-memory transport or protocol session to hold continuation state.
 
-  // Alert if too many sessions
-  if (stats.activeSessions > 100) {
-    console.warn('High session count detected');
-  }
-}, 30000);
+### Horizontal Scaling
+
+No MCP-specific coordination is required to run multiple Fastify instances behind a load balancer.
+
+```text
+              +-------------------+
+Client -----> | Load Balancer     |
+              +---------+---------+
+                        |
+             +----------+----------+
+             |                     |
+             v                     v
+       +-----------+         +-----------+
+       | Fastify A |         | Fastify B |
+       +-----------+         +-----------+
 ```
 
-### Graceful Shutdown
+Request 1 may be handled by instance A and request 2 by instance B. There is no protocol session that needs to be copied, restored, or routed consistently.
 
-```typescript
-import closeWithGrace from 'close-with-grace';
-
-closeWithGrace({ delay: 500 }, async ({ signal, err }) => {
-  if (err) {
-    app.log.error({ err }, 'server closing with error');
-  } else {
-    app.log.info(`${signal} received, server closing`);
-  }
-
-  // Fastify close will handle MCP session cleanup automatically
-  await app.close();
-});
-```
-
-## Session Storage
-
-The plugin provides a flexible session storage system that allows you to choose or implement your own storage backend. By default, sessions are stored in memory, but you can use Redis or create your own custom implementation.
-
-### Built-in Session Stores
-
-#### In-Memory Session Store (Default)
-
-```typescript
-import { InMemorySessionStore } from 'fastify-mcp-server';
-
-await app.register(FastifyMcpServer, {
-  createMcpServer
-  // sessionStore option is optional - InMemorySessionStore is used by default
-});
-```
-
-#### Redis Session Store
-
-For production deployments or distributed systems, use the Redis session store:
-
-```typescript
-import { RedisSessionStore } from 'fastify-mcp-server';
-
-const redisStore = new RedisSessionStore(redisClient); // Pass your Redis client instance
-
-await app.register(FastifyMcpServer, {
-  createMcpServer,
-  sessionStore: redisStore
-});
-```
-
-### Custom Session Store
-
-You can implement your own session store by implementing the `SessionStore` interface:
-
-```typescript
-import type { SessionStore, SessionData } from 'fastify-mcp-server';
-
-class MyCustomSessionStore implements SessionStore {
-  async load (sessionId: string): Promise<SessionData | undefined> {
-    // Load session from your storage backend
-  }
-
-  async save (sessionData: SessionData): Promise<void> {
-    // Save session to your storage backend
-  }
-
-  async delete (sessionId: string): Promise<void> {
-    // Delete session from your storage backend
-  }
-
-  async getAllSessionIds (): Promise<string[]> {
-    // Return all session IDs
-  }
-
-  async deleteAll (): Promise<void> {
-    // Delete all sessions
-  }
-}
-
-// Use your custom store
-await app.register(FastifyMcpServer, {
-  createMcpServer,
-  sessionStore: new MyCustomSessionStore()
-});
-```
-
-### How It Works
-
-The session store is responsible for persisting session metadata (session ID and creation time). The plugin manages transports and MCP server connections in memory for performance, while session metadata can be stored in your chosen backend.
-
-- **Session Creation**: When a client initializes, session metadata is saved to the store
-- **Session Retrieval**: Session data is loaded from the store to validate existing sessions
-- **Session Cleanup**: Sessions are removed from the store when destroyed
-- **Transport Management**: Active transports are maintained in memory for fast access
-
-### Comparison
-
-| Feature         | In-Memory                    | Redis                           | Custom                       |
-| --------------- | ---------------------------- | ------------------------------- | ---------------------------- |
-| **Persistence** | Lost on restart              | Persists across restarts        | Depends on implementation    |
-| **Scalability** | Single instance              | Multiple instances              | Depends on implementation    |
-| **Performance** | Fastest                      | Slightly slower (network)       | Depends on implementation    |
-| **Use Case**    | Development, single instance | Production, distributed systems | Specialized requirements     |
-| **Setup**       | No configuration needed      | Requires Redis server           | Custom implementation needed |
-
-### Docker Compose Example
-
-A `docker-compose.yaml` is provided for local development with Redis:
-
-```bash
-docker compose up -d
-npm run dev:redis
-```
+If your tools need application state, both instances should access the same application-owned persistence using explicit domain identifiers.
 
 ## Authentication: Bearer Token Support
 
-You can secure your MCP endpoints using Bearer token authentication. The plugin provides a `bearerMiddlewareOptions` option, which enables validation of Bearer tokens in the `Authorization` header for all MCP requests.
+You can secure the MCP endpoint using Bearer token authentication. Authentication is evaluated independently for every HTTP request.
+
+No authentication result is stored in an MCP protocol session.
 
 ### Enabling Bearer Token Authentication
 
-Pass the `authorization.bearerMiddlewareOptions` option when registering the plugin. It accepts `BearerAuthMiddlewareOptions` from the SDK:
+Configure `authorization.bearerMiddlewareOptions` when registering the plugin:
 
 ```typescript
-import type { BearerAuthMiddlewareOptions } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
-```
+import type { OAuthTokenVerifier } from '@modelcontextprotocol/server/server/middleware/bearerAuth';
 
-```typescript
+const verifier: OAuthTokenVerifier = {
+  async verifyAccessToken (token) {
+    return verifyMyAccessToken(token);
+  }
+};
+
 await app.register(FastifyMcpServer, {
   createMcpServer,
   authorization: {
     bearerMiddlewareOptions: {
-      verifier: myVerifier, // implements verifyAccessToken(token)
-      requiredScopes: ['mcp:read', 'mcp:write'], // optional
-      resourceMetadataUrl: 'https://example.com/.well-known/oauth-resource' // optional
+      verifier,
+      requiredScopes: ['mcp:read', 'mcp:write'],
+      resourceMetadataUrl: 'https://example.com/.well-known/oauth-protected-resource'
     }
   }
 });
 ```
 
-- **verifier**: An object with a `verifyAccessToken(token)` method that returns the decoded token info or throws on failure. It must implements the `OAuthTokenVerifier` interface from the SDK.
-- **requiredScopes**: (Optional) Array of scopes required for access.
-- **resourceMetadataUrl**: (Optional) URL included in the `WWW-Authenticate` header for 401 responses.
+- **verifier**: Validates the Bearer token and returns MCP `AuthInfo`.
+- **requiredScopes**: Optional scopes required for the request.
+- **resourceMetadataUrl**: Optional Protected Resource Metadata URL advertised through `WWW-Authenticate` responses.
 
 ### How It Works
 
-The plugin uses a Fastify `preHandler` hook applied in the context of the MCP registered routes (see `addBearerPreHandlerHook`) to:
+For each MCP HTTP request, the plugin:
 
-- Extract the Bearer token from the `Authorization` header (`Authorization: Bearer TOKEN`).
-- Validate the token using your verifier.
-- Check for required scopes and token expiration.
-- Attach the decoded auth info to the request object (`req.raw.auth`).
-- Respond with proper OAuth2 error codes and `WWW-Authenticate` headers on failure.
+1. extracts the Bearer token from the `Authorization` header;
+2. validates it through the configured verifier;
+3. validates expiration and required scopes;
+4. attaches the validated `AuthInfo` to the current MCP request context;
+5. returns the appropriate OAuth error and `WWW-Authenticate` challenge when authentication fails.
 
-#### Example Tool with authentication information
+Authentication is request-scoped, so different requests from the same client are independently verified.
 
-You can access the validated authentication information in your MCP tools via the `authInfo` parameter:
+### Accessing Authentication Information
+
+Validated authentication information is available through the MCP request context:
 
 ```typescript
-mcp.tool('example-auth-tool', 'Demo to display the validated access token in authInfo object', ({ authInfo }) => {
-  return {
+mcp.registerTool(
+  'who-am-i',
+  {
+    description: 'Return the authenticated client identifier'
+  },
+  async (ctx) => ({
     content: [
       {
         type: 'text',
-        // Just a bad example, do not expose sensitive information in your LLM responses! :-)
-        text: `Authenticated with token: ${authInfo.token}, scopes: ${authInfo.scopes.join(', ')}, expires at: ${new Date(authInfo.expiresAt).toISOString()}`
+        text: `Authenticated client: ${ctx.http?.authInfo?.clientId ?? 'anonymous'}`
       }
     ]
-  };
-});
+  })
+);
 ```
 
-#### Example Error Response
+Do not expose access tokens or other sensitive authentication material in MCP responses.
 
-If authentication fails, the response will include a `WWW-Authenticate` header:
+### Example Error Response
+
+If authentication fails, the response includes a standards-compliant `WWW-Authenticate` header:
 
 ```txt
 HTTP/1.1 401 Unauthorized
-WWW-Authenticate: Bearer error="invalid_token", error_description="Token has expired"
+WWW-Authenticate: Bearer error="invalid_token", error_description="Token has expired", resource_metadata="https://example.com/.well-known/oauth-protected-resource"
 Content-Type: application/json
-
-{"error":"invalid_token","error_description":"Token has expired"}
 ```
 
-#### Example using PAT in Visual Studio Code
+### Example using PAT in Visual Studio Code
 
 ```json
 {
@@ -486,15 +486,18 @@ Content-Type: application/json
 
 ## Well-Known OAuth Metadata Routes
 
-The plugin can automatically register standard OAuth 2.0 metadata endpoints under the `.well-known` path, which are useful for interoperability with OAuth clients and resource servers. You can test metadata discovery with the MCP inspector in the `Authentication` tab.
+The plugin can register standard OAuth metadata endpoints under `.well-known` for OAuth interoperability and MCP Protected Resource discovery.
 
 ### Registering Well-Known Routes
 
-To enable these endpoints, provide the `authorization.oauth2.authorizationServerOAuthMetadata` and/or `authorization.oauth2.protectedResourceOAuthMetadata` options when registering the plugin:
+Provide the relevant metadata when registering the plugin:
 
 ```typescript
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import Fastify from 'fastify';
+import { McpServer } from '@modelcontextprotocol/server';
 import FastifyMcpServer from 'fastify-mcp-server';
+
+const app = Fastify();
 
 function createMcpServer () {
   return new McpServer({
@@ -504,23 +507,22 @@ function createMcpServer () {
 }
 
 const authorizationServerMetadata = {
-  issuer: 'https://your-domain.com',
-  authorization_endpoint: 'https://your-domain.com/oauth/authorize',
-  token_endpoint: 'https://your-domain.com/oauth/token'
-  // ...other OAuth metadata fields
+  issuer: 'https://auth.example.com',
+  authorization_endpoint: 'https://auth.example.com/oauth/authorize',
+  token_endpoint: 'https://auth.example.com/oauth/token'
 };
 
 const protectedResourceMetadata = {
-  resource: 'https://your-domain.com/.well-known/oauth-protected-resource'
-  // ...other resource metadata fields
+  resource: 'https://api.example.com/mcp',
+  authorization_servers: ['https://auth.example.com']
 };
 
 await app.register(FastifyMcpServer, {
   createMcpServer,
   authorization: {
     oauth2: {
-      authorizationServerOAuthMetadata: authorizationServerMetadata, // Registers /.well-known/oauth-authorization-server
-      protectedResourceOAuthMetadata: protectedResourceMetadata // Registers /.well-known/oauth-protected-resource
+      authorizationServerOAuthMetadata: authorizationServerMetadata,
+      protectedResourceOAuthMetadata: protectedResourceMetadata
     }
   }
 });
@@ -528,55 +530,30 @@ await app.register(FastifyMcpServer, {
 
 ### Endpoints
 
-- `GET /.well-known/oauth-authorization-server` — Returns the OAuth authorization server metadata.
-- `GET /.well-known/oauth-protected-resource` — Returns the OAuth protected resource metadata.
+- `GET /.well-known/oauth-authorization-server` — OAuth Authorization Server metadata
+- `GET /.well-known/oauth-protected-resource` — OAuth Protected Resource Metadata
 
-These endpoints are registered only if the corresponding metadata options are provided.
+Only configured metadata endpoints are registered.
 
-## Custom Transport Options
+For MCP 2026 clients, prefer the current authorization model and Client ID Metadata Documents (CIMD) rather than building new integrations around deprecated Dynamic Client Registration flows.
 
-You can customize the behavior of the underlying `StreamableHTTPServerTransport` by providing `transportOptions` when registering the plugin. This allows you to configure advanced transport features such as custom session ID generation and transport lifecycle callbacks.
+## Protocol Compatibility
 
-### Available Options
+This major version supports MCP `2026-07-28` only.
 
-```typescript
-import type { StreamableHTTPServerTransportOptions } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+Pre-2026 MCP clients and protocol behaviors are intentionally unsupported. The plugin mounts the SDK v2 HTTP handler in strict modern mode (`legacy: 'reject'`) and does not provide a compatibility mode, fallback handler, legacy endpoint, or migration shim.
 
-await app.register(FastifyMcpServer, {
-  createMcpServer,
-  transportOptions: {
-    // Custom session ID generator function
-    sessionIdGenerator: () => {
-      // Return your custom session ID
-      return `custom-${Date.now()}-${Math.random()}`;
-    },
-    // Callback invoked when session is initialized
-    onsessioninitialized: async (sessionId) => {
-      console.log(`Session ${sessionId} initialized`);
-    }
-    // Additional StreamableHTTPServerTransport options...
-  }
-});
-```
+In particular, the following legacy concepts are not supported:
 
-### Use Cases
+- `initialize` / `initialized` as the MCP lifecycle handshake;
+- `Mcp-Session-Id`;
+- per-session `StreamableHTTPServerTransport` instances;
+- session GET/SSE channels;
+- DELETE-based MCP session termination;
+- MCP session stores;
+- sticky routing based on MCP session identity.
 
-- **Custom Session IDs**: Generate session IDs that match your existing ID format or include specific metadata
-- **Session Initialization Hooks**: Perform custom logic when sessions are created (e.g., logging, metrics, notifications)
-- **Transport Configuration**: Fine-tune transport behavior for specific deployment requirements
-
-### Example: Custom Session ID with Prefix
-
-```typescript
-await app.register(FastifyMcpServer, {
-  createMcpServer,
-  transportOptions: {
-    sessionIdGenerator: () => {
-      return `mcp-prod-${randomUUID()}`;
-    }
-  }
-});
-```
+Clients should explicitly use or pin protocol revision `2026-07-28`.
 
 ## Development
 
@@ -590,22 +567,35 @@ cd fastify-mcp-server
 # Install dependencies
 npm install
 
-# Run development server with hot reload
+# Run the development server
 npm run dev
 ```
 
 ### Scripts
 
-- `npm run dev` - Run development server with in-memory session storage
-- `npm run dev:redis` - Run development server with Redis session storage
+- `npm run dev` - Run the development server
 - `npm run build` - Build TypeScript to JavaScript
-- `npm test` - Run test suite with 100% coverage
+- `npm test` - Run the test suite with 100% coverage
 - `npm run test:lcov` - Generate LCOV coverage report
-- `npm run inspector` - Launch MCP inspector for testing
+- `npm run inspector` - Launch the MCP Inspector
+- `npm run lint` - Run ESLint
+- `npm run format` - Format the repository with Prettier
 
 ### Testing
 
-The project maintains 100% test coverage. Run tests with:
+The test suite focuses on modern protocol invariants, including:
+
+- normal MCP operations without initialization;
+- no dependency on `Mcp-Session-Id`;
+- request isolation;
+- routing-header validation;
+- request-scoped authentication;
+- multi-round-trip requests;
+- cancellation;
+- horizontal scaling without protocol affinity;
+- rejection of pre-2026 protocol traffic.
+
+Run the suite with:
 
 ```bash
 npm test
@@ -613,12 +603,13 @@ npm test
 
 ## Contributing
 
-Contributions are welcome! Please read our contributing guidelines and ensure:
+Contributions are welcome. Please ensure:
 
-1. Tests pass with 100% coverage
-2. Code follows the established style (enforced by Biome)
-3. Commits follow conventional commit format
-4. Changes are properly documented
+1. tests pass with 100% coverage;
+2. code follows the established ESLint and Prettier configuration;
+3. commits follow conventional commit format;
+4. changes remain aligned with MCP `2026-07-28` and do not reintroduce protocol-session state;
+5. user-facing changes are documented.
 
 ## License
 
@@ -626,6 +617,6 @@ ISC © [Flavio Del Grosso](https://github.com/flaviodelgrosso)
 
 ## Related Projects
 
-- [Model Context Protocol](https://github.com/modelcontextprotocol/servers) - Official MCP specification and servers
-- [Fastify](https://github.com/fastify/fastify) - Fast and low overhead web framework
-- [MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk) - TypeScript SDK for MCP
+- [Model Context Protocol](https://modelcontextprotocol.io/) - Official MCP specification and documentation
+- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) - Official TypeScript SDK for MCP
+- [Fastify](https://github.com/fastify/fastify) - Fast and low-overhead web framework

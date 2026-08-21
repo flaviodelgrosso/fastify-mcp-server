@@ -17,16 +17,6 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
 
-    services:
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - uses: actions/checkout@v5
@@ -37,12 +27,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Run MCP 2026 integration tests
         run: npm run test:lcov
-        env:
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          REDIS_DB: 1
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v5

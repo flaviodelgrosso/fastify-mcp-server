@@ -1,40 +1,52 @@
-import { OAuthMetadataSchema, OAuthProtectedResourceMetadataSchema } from '@modelcontextprotocol/sdk/shared/auth.js';
+import {
+  getOAuthProtectedResourceMetadataUrl,
+  oauthMetadataResponse
+} from '@modelcontextprotocol/server';
 import fp from 'fastify-plugin';
-import { z } from 'zod';
 
-import type { OAuth2AuthorizationOptions } from '../types.ts';
-import type { FastifyInstance } from 'fastify';
+import type { AuthMetadataOptions } from '@modelcontextprotocol/server';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
-async function wellKnownRoutesPlugin (app: FastifyInstance, options: OAuth2AuthorizationOptions) {
-  const { authorizationServerOAuthMetadata, protectedResourceOAuthMetadata } = options;
+async function sendMetadataResponse (
+  request: FastifyRequest,
+  reply: FastifyReply,
+  options: AuthMetadataOptions
+) {
+  const url = new URL(request.url, options.resourceServerUrl);
+  const response = oauthMetadataResponse(
+    new Request(url, {
+      headers: new Headers(request.headers as Record<string, string>),
+      method: request.method
+    }),
+    options
+  ) as Response;
+
+  for (const [name, value] of response.headers) {
+    reply.header(name, value);
+  }
+
+  if (response.body === null) {
+    return reply.code(response.status).send();
+  }
+
+  return reply.code(response.status).send(await response.json());
+}
+
+async function wellKnownRoutesPlugin (app: FastifyInstance, options: AuthMetadataOptions) {
+  const protectedResourcePath = new URL(
+    getOAuthProtectedResourceMetadataUrl(options.resourceServerUrl)
+  ).pathname;
 
   app.route({
-    method: 'GET',
+    method: ['GET', 'OPTIONS'],
     url: '/.well-known/oauth-authorization-server',
-    schema: {
-      response: {
-        200: z.toJSONSchema(OAuthMetadataSchema)
-      }
-    },
-    handler: async (_request, reply) => {
-      return reply.send(authorizationServerOAuthMetadata);
-    }
+    handler: async (request, reply) => sendMetadataResponse(request, reply, options)
   });
 
   app.route({
-    method: 'GET',
-    url: '/.well-known/oauth-protected-resource',
-    schema: {
-      response: {
-        200: z.toJSONSchema(OAuthProtectedResourceMetadataSchema)
-      }
-    },
-    handler: async (_request, reply) => {
-      reply.header('Content-Type', 'application/json');
-      reply.header('Cache-Control', 'public, max-age=3600');
-
-      return reply.send(protectedResourceOAuthMetadata);
-    }
+    method: ['GET', 'OPTIONS'],
+    url: protectedResourcePath,
+    handler: async (request, reply) => sendMetadataResponse(request, reply, options)
   });
 }
 

@@ -1,87 +1,53 @@
-import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
-import { InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
+import { OAuthError, OAuthErrorCode } from '@modelcontextprotocol/server';
 import fp from 'fastify-plugin';
-import { Redis } from 'ioredis';
 
-import FastifyMcpStreamableHttp, { getMcpDecorator, RedisSessionStore } from '../../src/index.ts';
-import { RedisEventStore } from '../event-store.ts';
+import FastifyMcpServer from '../../src/index.ts';
 import { createMcpServer } from '../mcp/server.ts';
 
 import type { FastifyMcpServerOptions } from '../../src/types.ts';
-import type { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provider.js';
-import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
+import type {
+  AuthInfo,
+  OAuthTokenVerifier
+} from '@modelcontextprotocol/server';
 import type { FastifyPluginAsync } from 'fastify';
 
 class BearerTokenVerifier implements OAuthTokenVerifier {
-  verifyAccessToken (token: string): Promise<AuthInfo> {
-    // Just a mock implementation for demonstration purposes.
-    return new Promise((resolve, reject) => {
-      if (token !== '1234567890') {
-        return reject(new InvalidTokenError('Invalid access token'));
-      }
-      resolve({ extra: { userId: '1234567890' }, token, clientId: 'example-client', scopes: [] });
-    });
+  async verifyAccessToken (token: string): Promise<AuthInfo> {
+    if (token !== '1234567890') {
+      throw new OAuthError(OAuthErrorCode.InvalidToken, 'Invalid access token');
+    }
+
+    return {
+      clientId: 'example-client',
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      extra: { userId: '1234567890' },
+      scopes: ['read:data', 'write:data'],
+      token
+    };
   }
 }
 
-const withRedis = process.argv.includes('--redis');
-
-const redis = new Redis({
-  host: 'localhost',
-  port: 6379,
-  db: 0
-});
-
-const sessionStore = withRedis ? new RedisSessionStore(redis) : undefined; // uses InMemorySessionStore by default
-const eventStore = withRedis ? new RedisEventStore(redis) : new InMemoryEventStore();
-
 const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpServerOptions> = async (app) => {
-  await app.register(FastifyMcpStreamableHttp, {
+  await app.register(FastifyMcpServer, {
     createMcpServer,
-    endpoint: '/mcp', // optional, defaults to '/mcp'
-    sessionStore,
-    transportOptions: {
-      eventStore
-    },
+    endpoint: '/mcp',
     authorization: {
-      bearerMiddlewareOptions: {
+      bearer: {
         verifier: new BearerTokenVerifier()
       },
-      oauth2: {
-        authorizationServerOAuthMetadata: {
-          issuer: 'http://127.0.0.1:9080',
+      metadata: {
+        oauthMetadata: {
           authorization_endpoint: 'http://127.0.0.1:9080/authorize',
-          token_endpoint: 'http://127.0.0.1:9080/token',
-          registration_endpoint: 'http://127.0.0.1:9080/register',
-          response_types_supported: ['code']
+          issuer: 'http://127.0.0.1:9080',
+          response_types_supported: ['code'],
+          token_endpoint: 'http://127.0.0.1:9080/token'
         },
-        protectedResourceOAuthMetadata: {
-          resource: 'http://127.0.0.1:9080',
-          scopes_supported: ['read:data', 'write:data'],
-          token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post']
-        }
+        resourceServerUrl: new URL('http://127.0.0.1:9080/mcp'),
+        scopesSupported: ['read:data', 'write:data']
       }
-    }
-  });
-
-  const sessionManager = getMcpDecorator(app).getSessionManager();
-
-  // Setup event handlers after plugin registration
-  sessionManager.on('sessionCreated', (sessionId) => {
-    app.log.info({ sessionId }, 'MCP session created');
-  });
-
-  sessionManager.on('sessionDestroyed', (sessionId) => {
-    app.log.info({ sessionId }, 'MCP session destroyed');
-  });
-
-  sessionManager.on('transportError', (sessionId, error) => {
-    app.log.error({ sessionId, error }, 'MCP transport error in session');
-  });
-
-  app.addHook('onClose', async () => {
-    if (withRedis) {
-      await redis.quit();
+    },
+    onRequestComplete: (event) => {
+      app.log.info(event, 'MCP request complete');
     }
   });
 };

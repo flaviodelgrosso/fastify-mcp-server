@@ -18,9 +18,9 @@ const FastifyMcp: FastifyPluginAsync<FastifyMcpServerOptions> = async (app, opti
 };
 
 /**
- * Get the `FastifyMcpStreamableHttp` decorator from the Fastify instance.
+ * Get the request-stateless MCP host from a Fastify instance.
  */
-export function getMcpDecorator (app: FastifyInstance) {
+export function getMcpDecorator (app: FastifyInstance): FastifyMcpServer {
   return app.getDecorator<FastifyMcpServer>(kFastifyMcp);
 }
 
@@ -30,6 +30,3 @@ export default fp(FastifyMcp, {
 });
 
 export * from './types.ts';
-export { InMemorySessionStore } from './sessions/store/memory.ts';
-export { RedisSessionStore } from './sessions/store/redis.ts';
-export { SessionManager } from './sessions/manager.ts';

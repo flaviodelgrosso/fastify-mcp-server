@@ -1,3 +1,4 @@
+import importX from 'eslint-plugin-import-x';
 import neo, { resolveIgnoresFromGitignore } from 'neostandard';
 
 export default [
@@ -7,6 +8,9 @@ export default [
     ignores: resolveIgnoresFromGitignore()
   }),
   {
+    plugins: {
+      'import-x': importX
+    },
     rules: {
       'import-x/order': [
         'warn',

@@ -1,4 +1,4 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer } from '@modelcontextprotocol/server';
 
 export function registerTools (mcp: McpServer) {
   mcp.registerTool('get-datetime', { description: 'Get the current date and time' }, () => ({
