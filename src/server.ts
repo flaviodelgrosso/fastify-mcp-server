@@ -1,12 +1,9 @@
 import { createMcpHandler } from '@modelcontextprotocol/server';
 
-import mcpRoutes from './routes/mcp.ts';
-import wellKnownRoutes from './routes/well-known.ts';
+import mcpRoutes from './mcp.ts';
+import wellKnownRoutes from './well-known.ts';
 
-import type {
-  FastifyMcpServerOptions,
-  McpRequestMetrics
-} from './types.ts';
+import type { FastifyMcpServerOptions, McpRequestMetrics } from './types.ts';
 import type { FastifyInstance } from 'fastify';
 
 const MCP_DEFAULT_ENDPOINT = '/mcp';
@@ -24,10 +21,7 @@ export class FastifyMcpServer {
 
   private readonly endpoint: string;
 
-  constructor (
-    app: FastifyInstance,
-    options: FastifyMcpServerOptions
-  ) {
+  constructor (app: FastifyInstance, options: FastifyMcpServerOptions) {
     this.endpoint = options.endpoint ?? MCP_DEFAULT_ENDPOINT;
     const handler = createMcpHandler(options.createMcpServer, {
       legacy: 'reject'

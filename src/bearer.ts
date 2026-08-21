@@ -1,12 +1,6 @@
-import {
-  bearerAuthChallengeResponse,
-  verifyBearerToken
-} from '@modelcontextprotocol/server';
+import { bearerAuthChallengeResponse, verifyBearerToken } from '@modelcontextprotocol/server';
 
-import type {
-  AuthInfo,
-  BearerAuthOptions
-} from '@modelcontextprotocol/server';
+import type { AuthInfo, BearerAuthOptions } from '@modelcontextprotocol/server';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 declare module 'fastify' {
@@ -33,11 +27,7 @@ export async function authenticateBearerRequest (
   }
 }
 
-async function sendAuthError (
-  error: unknown,
-  reply: FastifyReply,
-  options: BearerAuthOptions
-) {
+async function sendAuthError (error: unknown, reply: FastifyReply, options: BearerAuthOptions) {
   const response = bearerAuthChallengeResponse(error, options);
 
   for (const [name, value] of response.headers) {

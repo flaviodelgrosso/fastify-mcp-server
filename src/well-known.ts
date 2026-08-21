@@ -1,17 +1,10 @@
-import {
-  getOAuthProtectedResourceMetadataUrl,
-  oauthMetadataResponse
-} from '@modelcontextprotocol/server';
+import { getOAuthProtectedResourceMetadataUrl, oauthMetadataResponse } from '@modelcontextprotocol/server';
 import fp from 'fastify-plugin';
 
 import type { AuthMetadataOptions } from '@modelcontextprotocol/server';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
-async function sendMetadataResponse (
-  request: FastifyRequest,
-  reply: FastifyReply,
-  options: AuthMetadataOptions
-) {
+async function sendMetadataResponse (request: FastifyRequest, reply: FastifyReply, options: AuthMetadataOptions) {
   const url = new URL(request.url, options.resourceServerUrl);
   const response = oauthMetadataResponse(
     new Request(url, {
@@ -33,9 +26,7 @@ async function sendMetadataResponse (
 }
 
 async function wellKnownRoutesPlugin (app: FastifyInstance, options: AuthMetadataOptions) {
-  const protectedResourcePath = new URL(
-    getOAuthProtectedResourceMetadataUrl(options.resourceServerUrl)
-  ).pathname;
+  const protectedResourcePath = new URL(getOAuthProtectedResourceMetadataUrl(options.resourceServerUrl)).pathname;
 
   app.route({
     method: ['GET', 'OPTIONS'],

@@ -17,31 +17,27 @@ export function registerTools (mcp: McpServer) {
     ]
   }));
 
-  mcp.registerTool(
-    'example-auth-tool',
-    { description: 'Demo requiring a validated bearer token' },
-    (context) => {
-      const authInfo = context.http?.authInfo;
-      if (!authInfo?.token) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: 'This tool requires authentication. Please provide a valid Bearer token.'
-            }
-          ],
-          isError: true
-        };
-      }
-
+  mcp.registerTool('example-auth-tool', { description: 'Demo requiring a validated bearer token' }, (context) => {
+    const authInfo = context.http?.authInfo;
+    if (!authInfo?.token) {
       return {
         content: [
           {
             type: 'text',
-            text: `Authenticated tool called successfully for client ${authInfo.clientId}.`
+            text: 'This tool requires authentication. Please provide a valid Bearer token.'
           }
-        ]
+        ],
+        isError: true
       };
     }
-  );
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Authenticated tool called successfully for client ${authInfo.clientId}.`
+        }
+      ]
+    };
+  });
 }

@@ -7,16 +7,10 @@ import {
 } from '@modelcontextprotocol/server';
 import fp from 'fastify-plugin';
 
-import { authenticateBearerRequest } from '../bearer.ts';
+import { authenticateBearerRequest } from './bearer.ts';
 
-import type {
-  McpRequestEvent,
-  McpRequestMetrics
-} from '../types.ts';
-import type {
-  BearerAuthOptions,
-  McpHttpHandler
-} from '@modelcontextprotocol/server';
+import type { McpRequestEvent, McpRequestMetrics } from './types.ts';
+import type { BearerAuthOptions, McpHttpHandler } from '@modelcontextprotocol/server';
 import type { FastifyInstance } from 'fastify';
 
 type McpRoutesOptions = {
@@ -55,10 +49,7 @@ async function mcpRoutesPlugin (fastify: FastifyInstance, options: McpRoutesOpti
         });
       }
 
-      if (
-        request.method === 'POST' &&
-        (!request.headers['mcp-protocol-version'] || !request.headers['mcp-method'])
-      ) {
+      if (request.method === 'POST' && (!request.headers['mcp-protocol-version'] || !request.headers['mcp-method'])) {
         return reply.status(400).send({
           jsonrpc: '2.0',
           error: { code: -32600, message: 'Missing required MCP routing header' },

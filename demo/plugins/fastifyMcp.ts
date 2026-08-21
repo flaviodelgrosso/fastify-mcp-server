@@ -5,10 +5,7 @@ import FastifyMcpServer from '../../src/index.ts';
 import { createMcpServer } from '../mcp/server.ts';
 
 import type { FastifyMcpServerOptions } from '../../src/types.ts';
-import type {
-  AuthInfo,
-  OAuthTokenVerifier
-} from '@modelcontextprotocol/server';
+import type { AuthInfo, OAuthTokenVerifier } from '@modelcontextprotocol/server';
 import type { FastifyPluginAsync } from 'fastify';
 
 class BearerTokenVerifier implements OAuthTokenVerifier {

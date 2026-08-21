@@ -27,17 +27,17 @@ npx @modelcontextprotocol/codemod v1-to-v2 .
 
 ## Configuration mapping
 
-| 0.x configuration/API | 1.0.0 replacement |
-| --- | --- |
-| `createMcpServer: () => McpServer` | `createMcpServer: McpServerFactory`; a factory may accept request context |
-| `sessionStore` | remove it; use explicit application identifiers with application persistence |
-| `transportOptions` | remove it; the SDK v2 request handler owns modern transport behavior |
-| `getSessionManager()` | remove it; use normal Fastify hooks and `getStats()` request counters |
-| `activeSessions` | use `requestsTotal`, `inFlightRequests`, and `errorsTotal` if needed |
-| `sessionCreated`, `sessionDestroyed`, `transportError` | use `onRequestComplete` and Fastify/Pino hooks |
-| Redis session storage | delete it; use Redis only for domain data or a distributed SDK event bus |
-| `authorization.bearerMiddlewareOptions` | `authorization.bearer` (`BearerAuthOptions`) |
-| `authorization.oauth2` | `authorization.metadata` (`AuthMetadataOptions`) |
+| 0.x configuration/API                                  | 1.0.0 replacement                                                            |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `createMcpServer: () => McpServer`                     | `createMcpServer: McpServerFactory`; a factory may accept request context    |
+| `sessionStore`                                         | remove it; use explicit application identifiers with application persistence |
+| `transportOptions`                                     | remove it; the SDK v2 request handler owns modern transport behavior         |
+| `getSessionManager()`                                  | remove it; use normal Fastify hooks and `getStats()` request counters        |
+| `activeSessions`                                       | use `requestsTotal`, `inFlightRequests`, and `errorsTotal` if needed         |
+| `sessionCreated`, `sessionDestroyed`, `transportError` | use `onRequestComplete` and Fastify/Pino hooks                               |
+| Redis session storage                                  | delete it; use Redis only for domain data or a distributed SDK event bus     |
+| `authorization.bearerMiddlewareOptions`                | `authorization.bearer` (`BearerAuthOptions`)                                 |
+| `authorization.oauth2`                                 | `authorization.metadata` (`AuthMetadataOptions`)                             |
 
 ## HTTP client migration
 

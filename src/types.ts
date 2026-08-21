@@ -1,8 +1,4 @@
-import type {
-  AuthMetadataOptions,
-  BearerAuthOptions,
-  McpServerFactory
-} from '@modelcontextprotocol/server';
+import type { AuthMetadataOptions, BearerAuthOptions, McpServerFactory } from '@modelcontextprotocol/server';
 
 export type McpRequestMetrics = {
   requestsTotal: number;
