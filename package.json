@@ -56,7 +56,7 @@
     "@commitlint/config-conventional": "^20.2.0",
     "@fastify/autoload": "^6.3.1",
     "@fastify/cors": "^11.2.0",
-    "@fastify/formbody": "^8.0.2",
+    "@fastify/formbody": "^9.0.0",
     "@modelcontextprotocol/client": "^2.0.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "@types/node": "^24.10.4",
