@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.1.0](https://github.com/flaviodelgrosso/fastify-mcp-server/compare/v1.0.0...v1.1.0) (2026-10-06)
+
+
+### Features
+
+* add native stdio transport support ([c74a825](https://github.com/flaviodelgrosso/fastify-mcp-server/commit/c74a8250f1a8cc658ac328fabf480edafd324865))
+
 ## [1.0.0](https://github.com/flaviodelgrosso/fastify-mcp-server/compare/v0.7.2...v1.0.0) (2026-08-21)
 
 ### Major Changes (BREAKING CHANGES)
