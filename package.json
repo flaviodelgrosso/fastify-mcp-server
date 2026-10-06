@@ -32,6 +32,7 @@
   },
   "scripts": {
     "dev": "node --watch demo/server.ts",
+    "dev:stdio": "node demo/stdio-server.ts",
     "build": "rimraf dist && tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
     "prepare": "husky",

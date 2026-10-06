@@ -14,10 +14,12 @@ import Fastify from 'fastify';
 
 import FastifyMcpServer, { getMcpDecorator } from '../src/index.ts';
 
-import type { FastifyMcpServerOptions } from '../src/types.ts';
+import type { HttpMcpServer } from '../src/server.ts';
+import type { HttpTransportOptions } from '../src/types.ts';
 import type { CreateMcpHandlerOptions, ServerEvent, ServerEventBus } from '@modelcontextprotocol/server';
+import type { FastifyInstance } from 'fastify';
 const protocolVersion = '2026-07-28';
-type HandlerOptions = NonNullable<FastifyMcpServerOptions['handlerOptions']>;
+type HandlerOptions = NonNullable<HttpTransportOptions['handlerOptions']>;
 type Assert<T extends true> = T;
 export type HandlerOptionsMatchSdk = Assert<
   HandlerOptions extends Omit<CreateMcpHandlerOptions, 'legacy'>
@@ -57,6 +59,13 @@ async function withTimeout<T> (promise: Promise<T>, message: string, timeoutMs =
   }
 }
 
+function httpHost (app: FastifyInstance): HttpMcpServer {
+  const host = getMcpDecorator(app);
+  if (host.transport !== 'http') {
+    throw new Error('expected HTTP MCP host');
+  }
+  return host;
+}
 function metadata (clientName = 'test-client') {
   return {
     'io.modelcontextprotocol/clientCapabilities': { elicitation: { form: {} } },
@@ -89,9 +98,10 @@ function request (method: string, params: Record<string, unknown> = {}, name?: s
   };
 }
 
-async function buildApp (options: Partial<FastifyMcpServerOptions> = {}) {
+async function buildApp (options: Partial<HttpTransportOptions> = {}) {
   const app = Fastify();
   await app.register(FastifyMcpServer, {
+    transport: 'http',
     createMcpServer: () => {
       const server = new McpServer({ name: 'test', version: '1.0.0' });
       server.registerTool('echo', {}, async () => ({
@@ -162,7 +172,7 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
     await app.inject(second);
 
     deepStrictEqual(observedClients, ['first', 'second']);
-    equal(getMcpDecorator(app).getStats().inFlightRequests, 0);
+    equal(httpHost(app).getStats().inFlightRequests, 0);
     await app.close();
   });
 
@@ -334,7 +344,7 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
         durationMs: events[0]?.durationMs
       }
     ]);
-    strictEqual(getMcpDecorator(app).getStats().errorsTotal, 0);
+    strictEqual(httpHost(app).getStats().errorsTotal, 0);
     await app.close();
   });
 
@@ -420,7 +430,7 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
     });
 
     strictEqual((await app.inject(request('tools/list'))).statusCode, 500);
-    strictEqual(getMcpDecorator(app).getStats().errorsTotal, 1);
+    strictEqual(httpHost(app).getStats().errorsTotal, 1);
     await app.close();
   });
   test('forwards modern handler options and exposes notification publishing', async () => {
@@ -435,7 +445,7 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
       }
     });
 
-    strictEqual(typeof getMcpDecorator(app).notify.toolsChanged, 'function');
+    strictEqual(typeof httpHost(app).notify.toolsChanged, 'function');
     strictEqual((await app.inject(request('tools/list'))).statusCode, 500);
     strictEqual(
       errors.some((error) => error.message === 'handler option failure'),
@@ -482,7 +492,7 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
       const first = await client.listen({ toolsListChanged: true });
       const second = await client.listen({ toolsListChanged: true });
 
-      getMcpDecorator(app).notify.toolsChanged();
+      httpHost(app).notify.toolsChanged();
       deepStrictEqual(
         (await client.listTools()).tools.map((tool) => tool.name),
         ['echo', 'confirm']
@@ -490,7 +500,7 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
       await withTimeout(firstPublishReceived, 'initial subscription notifications not received');
       await withTimeout(first.close(), 'first subscription did not close');
       strictEqual(await first.closed, 'local');
-      getMcpDecorator(app).notify.toolsChanged();
+      httpHost(app).notify.toolsChanged();
       await withTimeout(secondPublishReceived, 'remaining subscription notification not received');
 
       strictEqual(notifications, 3);
@@ -602,7 +612,7 @@ describe('MCP 2026-07-28 stateless Streamable HTTP', () => {
       const resumed = await client.callTool({ arguments: {}, name: 'confirm' });
       deepStrictEqual(resumed.content, [{ text: 'true', type: 'text' }]);
       const subscription = await client.listen({ toolsListChanged: true });
-      getMcpDecorator(app).notify.toolsChanged();
+      httpHost(app).notify.toolsChanged();
       await withTimeout(notification, 'official client notification not received');
       await withTimeout(subscription.close(), 'official client subscription did not close');
       strictEqual(await subscription.closed, 'local');

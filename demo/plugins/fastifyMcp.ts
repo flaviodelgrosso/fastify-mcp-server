@@ -28,6 +28,7 @@ const fastifyMcpPlugin: FastifyPluginAsync<FastifyMcpServerOptions> = async (app
   await app.register(FastifyMcpServer, {
     createMcpServer,
     endpoint: '/mcp',
+    transport: 'http',
     authorization: {
       bearer: {
         verifier: new BearerTokenVerifier()
